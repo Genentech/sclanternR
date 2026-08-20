@@ -1,0 +1,58 @@
+Package: sclanternR
+Title: Lineage tracing on long read scRNAseq data
+Version: 0.0.0.9000
+Authors@R: 
+    person("Jack", "Kamm", , "kammj2@gene.com", role = c("aut", "cre"))
+Description: Lineage tracing on long read scRNAseq data.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Imports:
+    BiocGenerics,
+    BiocParallel,
+    ComplexHeatmap,
+    Matrix,
+    MatrixExtra,
+    methods,
+    Rcpp,
+    S4Vectors,
+    circlize,
+    data.table,
+    dplyr,
+    dtplyr,
+    fastTopics,
+    forcats,
+    ggplot2,
+    pals,
+    stringr,
+    tibble
+LinkingTo:
+    Rcpp
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Collate:
+    'getFeatureAnno.R'
+    'CellAlleleCounts-class.R'
+    'CellAlleleCounts-methods.R'
+    'LocusModel-class.R'
+    'FiniteMixtureModel-class.R'
+    'LocusNMF-class.R'
+    'LocusModel-methods.R'
+    'FiniteMixtureModel-methods.R'
+    'LocusNMF-methods.R'
+    'RcppExports.R'
+    'computeF2dist.R'
+    'estimateDirichletPseudocount.R'
+    'estimateFmmDim.R'
+    'estimateMiCutoff.R'
+    'filter_cell_allele_counts.R'
+    'fitCellDistancePipeline.R'
+    'fitFiniteMixtureModel.R'
+    'fitLocusNMF.R'
+    'heatmapLocusMatrixList.R'
+    'logging.R'
+    'mutualinfo.R'
+    'sclanternR-package.R'
+Config/roxygen2/version: 8.0.0
+RoxygenNote: 7.3.3
