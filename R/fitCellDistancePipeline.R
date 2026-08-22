@@ -373,6 +373,7 @@ fitCellDistancePipeline <- function(
     }
 
     rownames(coords) <- cell_names
+    colnames(coords) <- paste0("PC", 1:ncol(coords))
 
     # --- Step 6: Compute distances ---
     dist_mat <- NULL

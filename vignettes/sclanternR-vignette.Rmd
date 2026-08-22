@@ -1,0 +1,148 @@
+---
+title: sclanternR vignette
+author: Jack Kamm
+date: "Revised: 2026-08-21"
+output:
+  BiocStyle::html_document
+package: sclanternR
+vignette: >
+  %\VignetteIndexEntry{sclanternR vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup-opts, include = FALSE}
+knitr::opts_chunk$set(
+    collapse = TRUE,
+    comment = "#>"
+)
+```
+
+# Example dataset
+
+```{r load-packages, message = FALSE}
+library(magrittr)
+library(ggplot2)
+
+library(ggtree)
+
+library(sclanternR)
+```
+
+We illustrate sclanternR on a subset of the HAP1 cell-line data from
+our preprint, consisting of the top 2000 loci from the full
+analysis in our preprint.
+
+We start with a matrix of allele counts in each locus in each cell:
+
+```{r}
+dim(hap1_subset)
+
+hap1_subset[1:5,1:5]
+```
+
+The rows of this matrix are are locus-allele pairs, and the columns
+are cells.  The rownames should follow the format `CHROM_POS_ALLELE`,
+e.g. `chr1_100084142_TAAA`.
+
+# Construct cell metadata
+
+For our example dataset, the cells (column) names contain the ground truth clone and the cell barcode. We extract this metadata here so we can make plots with it later.
+
+```{r}
+cell_meta <- stringr::str_match(colnames(hap1_subset), "(.*)_(.*)")
+colnames(cell_meta) <- c("cell_id", "clone", "cell_barcode")
+cell_meta %<>% as.data.frame()
+rownames(cell_meta) <- cell_meta$cell_id
+
+head(cell_meta)
+
+clone_colors <- pals::brewer.paired(12)[c(7,5,6,1,2)]
+names(clone_colors) <- sort(unique(cell_meta$clone))
+```
+
+# Data object construction
+
+We start by converting this into a `CellAlleleCounts` object:
+
+```{r}
+cac <- CellAlleleCounts(hap1_subset)
+cac
+```
+
+Alternatively, if using PacBio long-read data processed by our
+[sclantern-nf](https://github.com/Genentech/sclantern-nf) pipeline,
+the `CellAlleleCounts` can be created by calling
+`CellAlleleCounts_from_dataframe()` on the long table of counts
+produced by that pipeline.
+
+# Data slicing
+
+Loci can be sliced along rows and cells can be sliced along columns:
+```{r}
+cac[1:5, 1:5]
+```
+
+It can also be alternatively treated like a list; the `i`th element
+is a matrix of the counts at the `i`th locus:
+
+```{r}
+head(names(cac))
+
+first <- cac[[1]] # same as cac[["chr1_100084142"]]
+
+dim(first)
+
+first[, 1:5]
+```
+
+# Run analysis pipeline with default parameters
+
+The sclanternR procedure involves several steps, consisting of an initial clustering, selection of informative loci, smoothing of allele frequencies, and dimension reduction. The function `fitCellDistancePipeline()` runs each of these steps with automatic defaults.
+
+```{r}
+fit <- fitCellDistancePipeline(
+    cac, verbose=1
+)
+```
+
+## Examine PCA
+
+We plot the PCA embedding produced by the pipeline.
+
+```{r}
+# shuffle order of cells for plotting
+set.seed(12345)
+shuffle_order <- sample(1:ncol(cac))
+
+ggplot(
+    cbind(
+        cell_meta,
+        fit$cell_pca
+    )[shuffle_order,],
+    aes(x=PC1, y=PC2, color=clone)
+) +
+    geom_point(shape=1) +
+    scale_color_manual(values=clone_colors) +
+    theme_bw(base_size=16)
+```
+
+## Tree building
+
+For building distance-based phylogenies (e.g. with neighbor-joining), we recommend to use the *squared* Euclidean distances in the PCA space. These are also stored in the `dist` field of the fitted object.
+
+```{r}
+tr <- ape::nj(fit$dist)
+
+ggtree(tr, layout='ape') %<+%
+    cell_meta +
+    ggrastr::rasterise(geom_point(
+        data = function(d) {
+            d %>% dplyr::filter(isTip) %>% .[shuffle_order,]
+        },
+        #shape=1,
+        aes(color = clone)
+    ), dpi=300) +
+    scale_color_manual(values=clone_colors) +
+    theme(legend.position='bottom')
+```
