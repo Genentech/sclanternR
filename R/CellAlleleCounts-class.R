@@ -131,10 +131,12 @@ CellAlleleCounts <- function(counts, locus_map = NULL, cell_data = NULL) {
 
 #' Convert a named list of count matrices to a CellAlleleCounts object
 #'
-#' @param mat_list A named list of matrices (alleles x cells), one per locus.
-#'     All matrices must have the same column names (cells).
-#' @param cell_data Optional DataFrame of cell metadata. Rownames must match
-#'     column names of the matrices. If NULL, an empty DataFrame is created.
+#' @param mat_list A list of matrices (alleles x cells), one per
+#'     locus.  The list names should be the locus names. All matrices
+#'     must have the same column names (cells).
+#' @param cell_data Optional DataFrame of cell metadata. Rownames must
+#'     match column names of the matrices. If NULL, an empty DataFrame
+#'     is created.
 #'
 #' @returns A `CellAlleleCounts` object.
 #'
@@ -167,6 +169,18 @@ CellAlleleCounts_from_list <- function(mat_list, cell_data = NULL) {
     .new_cac(counts, locus_map, cell_data)
 }
 
+#' Convert a dataframe produced by sclantern-nf into CellAlleleCounts
+#'
+#' @param df_counts A long dataframe or data.table, as produced by
+#'     sclantern-nf. The table should have columns "cell", "umi",
+#'     "allele", "locus", "count", corresponding respectively to the
+#'     cell barcode, UMI barcode, allele, locus, reads.
+#' @param cell_data Optional DataFrame of cell metadata. Rownames must
+#'     match column names of the matrices. If NULL, an empty DataFrame
+#'     is created.
+#'
+#' @returns A `CellAlleleCounts` object.
+#'
 #' @export
 #' @importFrom data.table as.data.table
 #' @importFrom dtplyr lazy_dt

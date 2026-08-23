@@ -7,11 +7,13 @@
 CellAlleleCounts_from_list(mat_list, cell_data = NULL)
 }
 \arguments{
-\item{mat_list}{A named list of matrices (alleles x cells), one per locus.
-All matrices must have the same column names (cells).}
+\item{mat_list}{A list of matrices (alleles x cells), one per
+locus.  The list names should be the locus names. All matrices
+must have the same column names (cells).}
 
-\item{cell_data}{Optional DataFrame of cell metadata. Rownames must match
-column names of the matrices. If NULL, an empty DataFrame is created.}
+\item{cell_data}{Optional DataFrame of cell metadata. Rownames must
+match column names of the matrices. If NULL, an empty DataFrame
+is created.}
 }
 \value{
 A \code{CellAlleleCounts} object.
