@@ -2,9 +2,7 @@
 #' Estimate a mutual information cutoff for locus selection
 #'
 #' Computes per-locus mutual information and applies one of several
-#' automatic threshold methods to select informative loci. The returned
-#' MI vector is unsorted, preserving the model's locus order so that
-#' results from different batches can be directly combined.
+#' automatic threshold methods to select informative loci.
 #'
 #' @param model A \code{\linkS4class{LocusModel}} (LocusNMF or
 #'     FiniteMixtureModel).
@@ -23,6 +21,8 @@
 #' @param alpha Significance level for the \code{"fdr"} method (default 0.05).
 #' @param mad_threshold Number of MADs above the median for the \code{"mad"}
 #'     method (default 3).
+#' @param min_loci Minimum number of loci to keep (default 10)
+#' @param max_loci Maximum number of loci to keep (default 300)
 #'
 #' @returns An S3 object of class \code{"MiCutoffEstimate"} (a named list)
 #'   with:
@@ -66,7 +66,9 @@ estimateMiCutoff <- function(
     x = NULL,
     method = c("fdr", "mad", "elbow"),
     alpha = 0.05,
-    mad_threshold = 3
+    mad_threshold = 3,
+    min_loci = 10,
+    max_loci = 300
 ) {
     if (!is(model, "LocusModel"))
         stop("model must be a LocusModel (FiniteMixtureModel or LocusNMF)")
@@ -78,20 +80,23 @@ estimateMiCutoff <- function(
     K <- ncol(model@Fmat)
     method_result <- .apply_mi_cutoff(mi, method, n_alleles, K,
                                       alpha, mad_threshold)
-
     cutoff <- method_result$cutoff
     passes <- mi >= cutoff
+
+    n_loci <- pmax(min_loci, pmin(max_loci, sum(passes)))
+
+    mi_rank <- rank(-mi, ties.method="first")
+    passes <- mi_rank <= n_loci
+
     loci <- names(mi)[passes]
 
     result <- c(
         list(
             mutualinfo = mi,
-            cutoff = cutoff,
             n_loci = sum(passes),
-            loci = loci,
-            method = method
+            loci = loci
         ),
-        method_result[!names(method_result) %in% "cutoff"]
+        method_result
     )
 
     class(result) <- "MiCutoffEstimate"
@@ -171,7 +176,7 @@ estimateMiCutoff <- function(
 
 #' @export
 print.MiCutoffEstimate <- function(x, ...) {
-    cat(sprintf("MiCutoffEstimate (method: %s)\n", x$method))
+    cat("MiCutoffEstimate \n")
     cat(sprintf("  %d / %d loci selected (cutoff = %.4g)\n",
                 x$n_loci, length(x$mutualinfo), x$cutoff))
     if (x$n_loci > 0 && x$n_loci <= 10) {
@@ -185,23 +190,16 @@ print.MiCutoffEstimate <- function(x, ...) {
 
 #' @importFrom ggplot2 ggplot aes geom_point geom_vline scale_y_continuous scale_x_log10 theme_bw theme
 #' @export
-plot.MiCutoffEstimate <- function(x, manual_cutoff = NULL, ...) {
+plot.MiCutoffEstimate <- function(x) {
     df <- data.frame(
         mutualinfo = x$mutualinfo,
         rank = rank(-x$mutualinfo))
-    cutoff_df <- data.frame(
-        cutoff = x$n_loci, method = x$method)
-    if (!is.null(manual_cutoff)) {
-        cutoff_df <- rbind(cutoff_df,
-            data.frame(cutoff = manual_cutoff, method = "manual"))
-    }
-    p <- ggplot(df, aes(x = rank, y = mutualinfo)) +
-        geom_vline(aes(xintercept = cutoff + 0.5, color = method),
-                   lty = "dashed", data = cutoff_df) +
+    ggplot(df, aes(x = rank, y = mutualinfo)) +
+        geom_vline(aes(xintercept = x$n_loci + 0.5),
+                   lty = "dashed") +
         geom_point(shape = 1) +
         scale_y_continuous(trans = "log1p", breaks = c(0, 10^(0:6))) +
         scale_x_log10() +
         theme_bw(base_size=16) +
         theme(legend.position = "bottom")
-    p
 }

@@ -5,7 +5,6 @@ test_that("estimateMiCutoff: mad returns valid result", {
     result <- estimateMiCutoff(fmm, cnt, method = "mad")
 
     expect_s3_class(result, "MiCutoffEstimate")
-    expect_equal(result$method, "mad")
     expect_true(is.numeric(result$mutualinfo))
     expect_equal(length(result$mutualinfo), length(fmm))
     expect_true(is.numeric(result$cutoff))
@@ -24,7 +23,6 @@ test_that("estimateMiCutoff: elbow returns valid result", {
     result <- estimateMiCutoff(fmm, cnt, method = "elbow")
 
     expect_s3_class(result, "MiCutoffEstimate")
-    expect_equal(result$method, "elbow")
     expect_true(result$n_loci >= 1)
     expect_true(!is.null(result$curvature))
 })
@@ -35,7 +33,6 @@ test_that("estimateMiCutoff: fdr returns valid result", {
     result <- estimateMiCutoff(fmm, cnt, method = "fdr")
 
     expect_s3_class(result, "MiCutoffEstimate")
-    expect_equal(result$method, "fdr")
     expect_true(!is.null(result$pvalues))
     expect_equal(length(result$pvalues), length(result$mutualinfo))
     expect_true(all(result$pvalues >= 0 & result$pvalues <= 1))
@@ -123,7 +120,6 @@ test_that("pipeline: character n_loci = 'elbow' works", {
 
     expect_s3_class(result, "CellDistancePipeline")
     expect_s3_class(result$mi_cutoff, "MiCutoffEstimate")
-    expect_equal(result$mi_cutoff$method, "elbow")
     expect_true(is.matrix(result$cell_pca))
 })
 
@@ -133,7 +129,6 @@ test_that("pipeline: character n_loci = 'fdr' works", {
                                       fmm_control = list(maxiter = 10))
 
     expect_s3_class(result, "CellDistancePipeline")
-    expect_equal(result$mi_cutoff$method, "fdr")
 })
 
 test_that("pipeline: numeric n_loci returns mi_cutoff = NULL", {
@@ -142,16 +137,6 @@ test_that("pipeline: numeric n_loci returns mi_cutoff = NULL", {
                                       fmm_control = list(maxiter = 10))
 
     expect_null(result$mi_cutoff)
-})
-
-test_that("pipeline: character n_loci = 'mad' clamps to min_loci with random data", {
-    cnt <- .make_cell_cnt_large()
-    expect_warning(
-        result <- fitCellDistancePipeline(cnt, n_clusters = 3, n_loci = "mad",
-                                          fmm_control = list(maxiter = 10)),
-        "clamping to min_loci"
-    )
-    expect_s3_class(result, "CellDistancePipeline")
 })
 
 test_that("pipeline: character n_loci with batch correction", {

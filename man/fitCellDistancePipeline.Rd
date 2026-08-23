@@ -9,8 +9,6 @@ fitCellDistancePipeline(
   n_clusters = 20,
   n_loci = "fdr",
   keep_loci = NULL,
-  min_loci = 10,
-  max_loci = 300,
   pseudocount = 1,
   n_pcs = NULL,
   n_pcs2 = NULL,
@@ -18,7 +16,7 @@ fitCellDistancePipeline(
   init = NULL,
   compute_dist = TRUE,
   fmm_control = list(),
-  use_scaled_mutinfo = TRUE,
+  n_loci_control = list(),
   reestimate_loadings = TRUE,
   verbose = FALSE
 )
@@ -36,14 +34,6 @@ exceeding the estimated threshold. Ignored if \code{keep_loci} non-NULL.}
 
 \item{keep_loci}{Loci to keep for the shrunken frequencies. Overrides \code{n_loci}
 when non-null.}
-
-\item{min_loci}{Minimum number of loci when using automatic MI cutoff
-(default 10). If fewer are selected, the top \code{min_loci} loci by
-MI are used instead and a warning is issued.}
-
-\item{max_loci}{Maximum number of loci when using automatic MI cutoff
-(default 300). If more are selected, only the top \code{max_loci} loci
-by MI are kept and a warning is issued.}
 
 \item{pseudocount}{Numeric shrinkage parameter or \code{"auto"} (default 1).
 When numeric, cell-level frequencies are shrunk toward model predictions
@@ -80,9 +70,8 @@ to return only the cell PCA coordinates.}
 \item{fmm_control}{Named list of additional arguments passed to
 \code{\link{fitFiniteMixtureModel}}.}
 
-\item{use_scaled_mutinfo}{Logical (default \code{TRUE}). If TRUE, mutual
-information is scaled by actual cell counts; if FALSE, uses model
-frequencies weighted by topic proportions.}
+\item{n_loci_control}{Named list of additional arguments passed to
+\code{\link{estimateMiCutoff}}.}
 
 \item{reestimate_loadings}{Logical or \code{"auto"} (default \code{TRUE}).
 If \code{TRUE}, cell loadings are re-estimated on the informative loci

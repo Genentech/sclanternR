@@ -9,7 +9,9 @@ estimateMiCutoff(
   x = NULL,
   method = c("fdr", "mad", "elbow"),
   alpha = 0.05,
-  mad_threshold = 3
+  mad_threshold = 3,
+  min_loci = 10,
+  max_loci = 300
 )
 }
 \arguments{
@@ -34,6 +36,10 @@ via maximum distance to the baseline (Kneedle algorithm).}
 
 \item{mad_threshold}{Number of MADs above the median for the \code{"mad"}
 method (default 3).}
+
+\item{min_loci}{Minimum number of loci to keep (default 10)}
+
+\item{max_loci}{Maximum number of loci to keep (default 300)}
 }
 \value{
 An S3 object of class \code{"MiCutoffEstimate"} (a named list)
@@ -57,9 +63,7 @@ Additional method-specific elements:
 }
 \description{
 Computes per-locus mutual information and applies one of several
-automatic threshold methods to select informative loci. The returned
-MI vector is unsorted, preserving the model's locus order so that
-results from different batches can be directly combined.
+automatic threshold methods to select informative loci.
 }
 \examples{
 \dontrun{

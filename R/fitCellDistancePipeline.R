@@ -25,12 +25,6 @@
 #'     exceeding the estimated threshold. Ignored if \code{keep_loci} non-NULL.
 #' @param keep_loci Loci to keep for the shrunken frequencies. Overrides `n_loci`
 #'     when non-null.
-#' @param min_loci Minimum number of loci when using automatic MI cutoff
-#'     (default 10). If fewer are selected, the top \code{min_loci} loci by
-#'     MI are used instead and a warning is issued.
-#' @param max_loci Maximum number of loci when using automatic MI cutoff
-#'     (default 300). If more are selected, only the top \code{max_loci} loci
-#'     by MI are kept and a warning is issued.
 #' @param pseudocount Numeric shrinkage parameter or \code{"auto"} (default 1).
 #'     When numeric, cell-level frequencies are shrunk toward model predictions
 #'     using this as the Dirichlet prior weight. When \code{"auto"}, the
@@ -59,9 +53,8 @@
 #'     to return only the cell PCA coordinates.
 #' @param fmm_control Named list of additional arguments passed to
 #'     \code{\link{fitFiniteMixtureModel}}.
-#' @param use_scaled_mutinfo Logical (default \code{TRUE}). If TRUE, mutual
-#'     information is scaled by actual cell counts; if FALSE, uses model
-#'     frequencies weighted by topic proportions.
+#' @param n_loci_control Named list of additional arguments passed to
+#'     \code{\link{estimateMiCutoff}}.
 #' @param reestimate_loadings Logical or \code{"auto"} (default \code{TRUE}).
 #'     If \code{TRUE}, cell loadings are re-estimated on the informative loci
 #'     only before predicting frequencies. If \code{FALSE}, the full-model
@@ -127,8 +120,6 @@ fitCellDistancePipeline <- function(
     n_clusters = 20,
     n_loci = "fdr",
     keep_loci = NULL,
-    min_loci = 10,
-    max_loci = 300,
     pseudocount = 1,
     n_pcs = NULL,
     n_pcs2 = NULL,
@@ -136,7 +127,7 @@ fitCellDistancePipeline <- function(
     init = NULL,
     compute_dist = TRUE,
     fmm_control = list(),
-    use_scaled_mutinfo = TRUE,
+    n_loci_control = list(),
     reestimate_loadings = TRUE,
     verbose = FALSE
 ) {
@@ -232,11 +223,6 @@ fitCellDistancePipeline <- function(
     projected_fmm <- .replace_fmm_fmat(fmm, Fmat_proj)
 
     # --- Step 3: Compute MI and select top loci ---
-    if (use_scaled_mutinfo) {
-        x_mi <- cell_allele_counts
-    } else {
-        x_mi <- NULL
-    }
 
     #mi_fmm <- projected_fmm
     # use original FMM to be consistent with user manually selecting cutoff from it
@@ -247,14 +233,14 @@ fitCellDistancePipeline <- function(
         .log_msg(1, verbose, "Step 3: Computing mutual information across %d loci",
                  length(mi_fmm))
         if (is.null(keep_loci) && !is.null(mi_method)) {
-            mi_cutoff <- estimateMiCutoff(mi_fmm, x_mi, method = mi_method)
+            mi_cutoff <- estimateMiCutoff(mi_fmm, cell_allele_counts, method = mi_method)
             mi <- mi_cutoff$mutualinfo
-            keep_loci <- .clamp_loci(mi_cutoff$loci, mi, min_loci, max_loci)
+            keep_loci <- mi_cutoff$loci
             .log_msg(1, verbose,
                      "Automatic MI cutoff (%s): %.4g, %d loci selected",
                      mi_method, mi_cutoff$cutoff, length(keep_loci))
         } else {
-            mi <- mutualinfo(mi_fmm, x_mi)
+            mi <- mutualinfo(mi_fmm, cell_allele_counts)
             if (is.null(keep_loci)) {
                 mi_sort <- sort(mi, decreasing = TRUE)
                 keep_loci <- names(mi_sort)[seq_len(min(n_loci, length(mi_sort)))]
@@ -267,12 +253,7 @@ fitCellDistancePipeline <- function(
 
         mi <- sapply(levels(batch), function(b) {
             cells_b <- cell_names[batch == b]
-            if (use_scaled_mutinfo) {
-                x_b <- cell_allele_counts[, cells_b]
-            } else {
-                x_b <- NULL
-            }
-            mutualinfo(mi_fmm[, cells_b], x_b)
+            mutualinfo(mi_fmm[, cells_b], cell_allele_counts[, cells_b])
         })
         if (is.null(keep_loci)) {
             if (!is.null(mi_method)) {
@@ -282,9 +263,7 @@ fitCellDistancePipeline <- function(
                     mi_col <- mi[, b]
                     res <- .apply_mi_cutoff(mi_col, mi_method,
                                            n_alleles, K)
-                    loci_b <- names(mi_col)[mi_col >= res$cutoff]
-                    .clamp_loci(loci_b, mi_col, min_loci, max_loci,
-                                batch_label = b)
+                    names(mi_col)[mi_col >= res$cutoff]
                 })
                 keep_loci <- unique(unlist(keep_loci))
             } else {
@@ -542,29 +521,6 @@ fitCellDistancePipeline <- function(
              "Batch correction: projecting out %d LDA components (%d batches)",
              ncol(Q), nlevels(as.factor(batch)))
     X - X %*% tcrossprod(Q)
-}
-
-# --- Loci guardrails ---
-
-.clamp_loci <- function(loci, mi, min_loci, max_loci, batch_label = NULL) {
-    n <- length(loci)
-    label <- if (!is.null(batch_label)) sprintf(" (batch '%s')", batch_label) else ""
-    mi_sorted <- sort(mi, decreasing = TRUE)
-    n_available <- length(mi_sorted)
-
-    if (n > max_loci) {
-        warning(sprintf(
-            "Automatic MI cutoff selected %d loci%s, clamping to max_loci = %d. Inspect plot(estimateMiCutoff(...)) to choose a manual cutoff.",
-            n, label, max_loci))
-        loci <- names(mi_sorted)[seq_len(min(max_loci, n_available))]
-    } else if (n < min_loci) {
-        actual <- min(min_loci, n_available)
-        warning(sprintf(
-            "Automatic MI cutoff selected %d loci%s, clamping to min_loci = %d. Inspect plot(estimateMiCutoff(...)) to choose a manual cutoff.",
-            n, label, actual))
-        loci <- names(mi_sorted)[seq_len(actual)]
-    }
-    loci
 }
 
 # --- S3 methods ---
