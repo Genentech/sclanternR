@@ -2,8 +2,7 @@
 title: sclanternR vignette
 author: Jack Kamm
 date: "Revised: 2026-08-21"
-output:
-  BiocStyle::html_document
+output: rmarkdown::html_vignette
 package: sclanternR
 vignette: >
   %\VignetteIndexEntry{sclanternR vignette}
@@ -63,7 +62,7 @@ names(clone_colors) <- sort(unique(cell_meta$clone))
 
 # Data object construction
 
-We start by converting this into a `CellAlleleCounts` object:
+We start by converting the count matrix into a `CellAlleleCounts` object:
 
 ```{r}
 cac <- CellAlleleCounts(hap1_subset)
@@ -110,7 +109,7 @@ fit <- fitCellDistancePipeline(
 
 We plot the PCA embedding produced by the pipeline.
 
-```{r}
+```{r, fig.width=5, fig.height=5}
 # shuffle order of cells for plotting
 set.seed(12345)
 shuffle_order <- sample(1:ncol(cac))
@@ -131,8 +130,85 @@ ggplot(
 
 For building distance-based phylogenies (e.g. with neighbor-joining), we recommend to use the *squared* Euclidean distances in the PCA space. These are also stored in the `dist` field of the fitted object.
 
-```{r}
+```{r, fig.width=5, fig.height=5}
 tr <- ape::nj(fit$dist)
+
+ggtree(tr, layout='ape') %<+%
+    cell_meta +
+    ggrastr::rasterise(geom_point(
+        data = function(d) {
+            d %>% dplyr::filter(isTip) %>% .[shuffle_order,]
+        },
+        #shape=1,
+        aes(color = clone)
+    ), dpi=300) +
+    scale_color_manual(values=clone_colors) +
+    theme(legend.position='bottom')
+```
+
+# Rerunning with better parameters
+
+`fitCellDistancePipeline()` has several tuning parameters, and it tries to set reasonable defaults automatically. However, the automatic heuristics are imperfect, and it's recommended to visualize these cutoffs and set them manually. 
+
+## Number of loci
+
+The first cutoff to consider is the number of informative loci to retain. We use a scaled version of the mutual information (G-statistic) to rank the loci.
+
+For the automatic cutoff, we test for the loci being independent of the clusters, and select loci at 5% FDR, with bounds of at least 10 loci or at most 300 loci selected.
+
+Below, we plot the scaled mutual information scores and the cutoff selected. The maximum cutoff of 300 was chosen; however this was likely too high, as we can visually see a sharp drop at between 10-30 loci. Also, as a rule of thumb, we've found that selecting between 30-100 loci tends to give the best results.
+
+```{r, fig.width=5, fig.height=5}
+plot(fit$mi_cutoff)
+```
+
+## Number of principal components
+
+The second cutoff to consider is the number of PCs to keep.
+
+By default, we use the Gavish-Donoho procedure to select the number of PCs. But it's recommended to check the scree plot to see if there is a more obvious inflection point visually. In this case, there wasn't a more obvious cutoff, and we stick with the default selected 5 PCs.
+
+```{r, fig.width=5, fig.height=5}
+plot(fit$scree)
+```
+
+## Rerunning the pipeline
+
+The pipeline can be rerun with the manually selected cutoffs. We can pass the previous fit in order to skip intermediate steps that are the same between the 2 runs (namely, the initial clustering procedure).
+
+```{r}
+fit2 <- fitCellDistancePipeline(
+    cac,
+    n_loci = 30,
+    n_pcs = 5,
+    init = fit,
+    verbose=1
+)
+```
+
+## Plot updated PCA
+
+We plot the updated PCA from the rerun fit.
+
+```{r, fig.width=5, fig.height=5}
+ggplot(
+    cbind(
+        cell_meta,
+        fit2$cell_pca
+    )[shuffle_order,],
+    aes(x=PC1, y=PC2, color=clone)
+) +
+    geom_point(shape=1) +
+    scale_color_manual(values=clone_colors) +
+    theme_bw(base_size=16)
+```
+
+## Plot updated tree
+
+We recompute the neighbor joining tree and plot it.
+
+```{r, fig.width=5, fig.height=5}
+tr <- ape::nj(fit2$dist)
 
 ggtree(tr, layout='ape') %<+%
     cell_meta +
