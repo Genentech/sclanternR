@@ -222,3 +222,54 @@ ggtree(tr, layout='ape') %<+%
     scale_color_manual(values=clone_colors) +
     theme(legend.position='bottom')
 ```
+
+# Plotting heatmap of informative loci
+
+It is also useful to plot the estimated cell-level allele frequencies
+at the selected loci. The fit object contains these frequencies in the
+`freq_list` field, which can be plotted with `heatmapLocusMatrixList()`.
+
+```{r, fig.width=9, fig.height=8}
+heatmapLocusMatrixList(
+    fit2$freq_list,
+    cell_meta[, 'clone', drop=FALSE],
+    cell_meta_colors=list(
+        clone=clone_colors
+    )
+)
+```
+
+By default the cells are sorted by a hierarchical clustering, but the
+order can also be manually specified by setting `cluster_rows=FALSE`.
+Below, we sort the cells by ground truth clone.
+
+```{r, fig.width=9, fig.height=8}
+o <- order(cell_meta$clone)
+
+heatmapLocusMatrixList(
+    lapply(fit2$freq_list, function(x) x[,o]),
+    cell_meta[, 'clone', drop=FALSE],
+    cell_meta_colors=list(
+        clone=clone_colors
+    ),
+    cluster_rows = FALSE
+)
+```
+
+`heatmapLocusMatrixList()` can also be used to plot other list of
+matrices. Below, we demonstrate plotting the log10-scaled counts:
+
+```{r, fig.width=9, fig.height=8}
+log_cnt_list <- lapply(cac[names(fit2$freq_list)],
+                       function(x) log10(as.matrix(x) + 1))
+
+heatmapLocusMatrixList(
+    log_cnt_list,
+    cell_meta[, 'clone', drop=FALSE],
+    cell_meta_colors=list(
+        clone=clone_colors
+    ),
+    cluster_rows = FALSE,
+    colors = rev(pals::cubehelix(10))
+)
+```
