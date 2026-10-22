@@ -84,7 +84,8 @@ Behaves like a named list of per-locus matrices (alleles x cells).
 \item{\code{counts}}{RsparseMatrix with features (locus-allele pairs) as rows and
 cells as columns. CSR format makes per-locus row selection efficient.}
 
-\item{\code{locus_map}}{DataFrame with columns: locus, allele, feature_name.}
+\item{\code{locus_map}}{DataFrame with columns: locus, allele, feature_name, and
+optionally allele_type (REF/ALT annotation).}
 
 \item{\code{cell_data}}{DataFrame with cell metadata. Rownames are cell identifiers.}
 

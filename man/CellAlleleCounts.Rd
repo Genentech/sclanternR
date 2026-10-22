@@ -13,7 +13,8 @@ follow the format \verb{chr\{chr\}_\{position\}_\{allele\}}.}
 
 \item{locus_map}{A DataFrame with columns \code{locus}, \code{allele}, and
 \code{feature_name}, one row per feature (row of \code{counts}). If NULL, it is
-derived from \code{rownames(counts)} using the standard feature name format.}
+derived from \code{rownames(counts)} using the standard feature name format.
+An optional \code{allele_type} column identifies alleles as \code{REF} or \code{ALT}.}
 
 \item{cell_data}{A DataFrame of cell metadata whose rownames are cell
 identifiers matching \code{colnames(counts)}. If NULL, an empty DataFrame

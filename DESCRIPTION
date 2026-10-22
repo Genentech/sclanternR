@@ -42,6 +42,7 @@ Collate:
     'FiniteMixtureModel-methods.R'
     'LocusNMF-methods.R'
     'RcppExports.R'
+    'collapse_rna_editing.R'
     'computeF2dist.R'
     'estimateDirichletPseudocount.R'
     'estimateFmmDim.R'

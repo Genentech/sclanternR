@@ -8,7 +8,8 @@
 #'
 #' @slot counts RsparseMatrix with features (locus-allele pairs) as rows and
 #'     cells as columns. CSR format makes per-locus row selection efficient.
-#' @slot locus_map DataFrame with columns: locus, allele, feature_name.
+#' @slot locus_map DataFrame with columns: locus, allele, feature_name, and
+#'     optionally allele_type (REF/ALT annotation).
 #' @slot cell_data DataFrame with cell metadata. Rownames are cell identifiers.
 #' @slot locus_index Named list mapping each locus name to its row indices in
 #'     `counts`. Precomputed at construction for O(1) locus lookup.
@@ -92,6 +93,7 @@ setClass("CellAlleleCounts",
 #' @param locus_map A DataFrame with columns `locus`, `allele`, and
 #'     `feature_name`, one row per feature (row of `counts`). If NULL, it is
 #'     derived from `rownames(counts)` using the standard feature name format.
+#'     An optional `allele_type` column identifies alleles as `REF` or `ALT`.
 #' @param cell_data A DataFrame of cell metadata whose rownames are cell
 #'     identifiers matching `colnames(counts)`. If NULL, an empty DataFrame
 #'     is created from `colnames(counts)`.
@@ -174,10 +176,15 @@ CellAlleleCounts_from_list <- function(mat_list, cell_data = NULL) {
 #' @param df_counts A long dataframe or data.table, as produced by
 #'     sclantern-nf. The table should have columns "cell", "umi",
 #'     "allele", "locus", "count", corresponding respectively to the
-#'     cell barcode, UMI barcode, allele, locus, reads.
-#' @param cell_data Optional DataFrame of cell metadata. Rownames must
-#'     match column names of the matrices. If NULL, an empty DataFrame
-#'     is created.
+#'     cell barcode, UMI barcode, allele, locus, reads. An optional
+#'     `allele_type` column (`REF`/`ALT`) is retained in `locus_map`.
+#'     Non-missing labels must agree for each locus-allele pair.
+#' @param min_cells_per_feature Minimum number of cells with nonzero counts
+#'     required to retain a feature (except REF when `keep_ref = TRUE`).
+#'     If positive, loci with only one retained allele are also removed.
+#'     Set to zero to disable filtering.
+#' @param keep_ref Logical; retain annotated REF alleles regardless of
+#'     the feature threshold. Default TRUE. Passed to [filter_cell_allele_counts()].
 #'
 #' @returns A `CellAlleleCounts` object.
 #'
@@ -187,7 +194,8 @@ CellAlleleCounts_from_list <- function(mat_list, cell_data = NULL) {
 #' @importFrom dplyr group_by mutate ungroup filter summarize
 #' @importFrom Matrix sparseMatrix
 CellAlleleCounts_from_dataframe <- function(df_counts,
-                                            min_cells_per_feature = 2) {
+                                            min_cells_per_feature = 2,
+                                            keep_ref = TRUE) {
     df_counts <- as.data.table(df_counts)
 
     lazy_dt(df_counts) |>
@@ -217,10 +225,23 @@ CellAlleleCounts_from_dataframe <- function(df_counts,
 
     ret <- CellAlleleCounts(cnt_mat)
 
+    if ("allele_type" %in% colnames(df_counts)) {
+        annotation <- unique(as.data.frame(df_counts)[,
+            c("locus", "allele", "allele_type"), drop = FALSE])
+        annotation <- annotation[!is.na(annotation$allele_type), , drop = FALSE]
+        features <- paste0(annotation$locus, "_", annotation$allele)
+        if (anyDuplicated(features)) {
+            stop("Conflicting allele_type annotations for a locus-allele pair")
+        }
+        ret@locus_map$allele_type <- as.character(annotation$allele_type)[
+            match(ret@locus_map$feature_name, features)]
+    }
+
     if (min_cells_per_feature > 0) {
         ret <- filter_cell_allele_counts(
             ret,
-            min_cells_per_feature = min_cells_per_feature
+            min_cells_per_feature = min_cells_per_feature,
+            keep_ref = keep_ref
         )
     }
 

@@ -4,17 +4,27 @@
 \alias{CellAlleleCounts_from_dataframe}
 \title{Convert a dataframe produced by sclantern-nf into CellAlleleCounts}
 \usage{
-CellAlleleCounts_from_dataframe(df_counts, min_cells_per_feature = 2)
+CellAlleleCounts_from_dataframe(
+  df_counts,
+  min_cells_per_feature = 2,
+  keep_ref = TRUE
+)
 }
 \arguments{
 \item{df_counts}{A long dataframe or data.table, as produced by
 sclantern-nf. The table should have columns "cell", "umi",
 "allele", "locus", "count", corresponding respectively to the
-cell barcode, UMI barcode, allele, locus, reads.}
+cell barcode, UMI barcode, allele, locus, reads. An optional
+\code{allele_type} column (\code{REF}/\code{ALT}) is retained in \code{locus_map}.
+Non-missing labels must agree for each locus-allele pair.}
 
-\item{cell_data}{Optional DataFrame of cell metadata. Rownames must
-match column names of the matrices. If NULL, an empty DataFrame
-is created.}
+\item{min_cells_per_feature}{Minimum number of cells with nonzero counts
+required to retain a feature (except REF when \code{keep_ref = TRUE}).
+If positive, loci with only one retained allele are also removed.
+Set to zero to disable filtering.}
+
+\item{keep_ref}{Logical; retain annotated REF alleles regardless of
+the feature threshold. Default TRUE. Passed to \code{\link[=filter_cell_allele_counts]{filter_cell_allele_counts()}}.}
 }
 \value{
 A \code{CellAlleleCounts} object.
