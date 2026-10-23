@@ -56,6 +56,11 @@
 #'     globally normalized feature frequencies. \code{"within_locus"}
 #'     subtracts the between-locus covariance from the total, giving distances
 #'     equivalent to centering features within each locus for each cell.
+#'     See [computeCellInnerProduct()] for the inner-product calculation.
+#' @param hclust_rank Optional positive integer giving the maximum rank of
+#'     the inner product used by \code{init="hclust"}. \code{NULL} (default)
+#'     disables rank reduction. Retains the leading eigencomponents of the
+#'     selected total or within-locus inner product before computing distances.
 #'
 #' @returns A \code{\linkS4class{FiniteMixtureModel}} object.
 #'
@@ -75,9 +80,11 @@ fitFiniteMixtureModel <- function(
     maxiter = 100,
     tol     = 1e-12,
     verbose = FALSE,
-    hclust_covariance = c("total", "within_locus")
+    hclust_covariance = c("total", "within_locus"),
+    hclust_rank = NULL
 ) {
     hclust_covariance <- match.arg(hclust_covariance)
+    .validate_inner_product_rank(hclust_rank, "hclust_rank")
     if (!identical(combined_multinomial, "init") &&
         !identical(combined_multinomial, TRUE) &&
         !identical(combined_multinomial, FALSE)) {
@@ -94,6 +101,7 @@ fitFiniteMixtureModel <- function(
             cell_pseudocount = cell_pseudocount,
             n_init_cells = n_init_cells,
             hclust_covariance = hclust_covariance,
+            hclust_rank = hclust_rank,
             maxiter = maxiter, tol = tol,
             verbose = verbose
         )
@@ -140,7 +148,7 @@ fitFiniteMixtureModel <- function(
         } else {
             NULL
         }
-        euc_dist <- .fmm_hclust_dist(Y_t_sub, init_locus_1hot)
+        euc_dist <- .fmm_hclust_dist(Y_t_sub, init_locus_1hot, hclust_rank)
 
         hc <- stats::hclust(euc_dist, method = "ward.D2")
         clusters <- stats::cutree(hc, k = n_clusters)
@@ -272,22 +280,8 @@ fitFiniteMixtureModel <- function(
     model
 }
 
-.fmm_hclust_dist <- function(Y_t, locus_1hot = NULL) {
-    rs <- Matrix::rowSums(Y_t)
-    rs[rs == 0] <- 1
-    freq_mat <- Matrix::Diagonal(x = 1 / rs) %*% Y_t
-
-    crossp <- as.matrix(Matrix::tcrossprod(freq_mat))
-    if (!is.null(locus_1hot)) {
-        n_features <- Matrix::rowSums(locus_1hot)
-        # Z[, l] = sqrt(m_l) * mean frequency in locus l. Then
-        # XX' - ZZ' equals the Gram matrix of within-locus residuals.
-        # Use uncentered sums for both terms so global centering cancels.
-        locus_freq <- freq_mat %*% Matrix::t(locus_1hot) %*%
-            Matrix::Diagonal(x = 1 / sqrt(n_features))
-        crossp <- crossp - as.matrix(Matrix::tcrossprod(locus_freq))
-    }
-
+.fmm_hclust_dist <- function(Y_t, locus_1hot = NULL, rank = NULL) {
+    crossp <- .cell_inner_product(Y_t, locus_1hot, rank)
     f2 <- computeF2dist(crossp)
     stats::as.dist(sqrt(pmax(f2, 0)))
 }

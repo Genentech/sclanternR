@@ -209,20 +209,6 @@ test_that("fitFiniteMixtureModel: init from LocusModel object", {
     }
 })
 
-# Unequal locus sizes (2, 3, 1), unequal locus coverage, and an empty cell.
-.make_fmm_hclust_cnt <- function() {
-    Y_t <- rbind(c(12, 8, 3, 3, 3, 1),
-                 c(8, 12, 3, 3, 3, 1),
-                 c(3, 3, 12, 8, 3, 1),
-                 c(3, 3, 8, 12, 3, 1),
-                 c(0, 0, 0, 0, 0, 0),
-                 c(5, 3, 8, 6, 2, 6))
-    rownames(Y_t) <- paste0("cell", seq_len(nrow(Y_t)))
-    colnames(Y_t) <- c("chr2_200_REF", "chr2_200_ALT", "chr1_100_REF",
-                      "chr1_100_A", "chr1_100_T", "chr3_300_REF")
-    CellAlleleCounts(t(Y_t))
-}
-
 # Independent dense reference: explicitly center features within each locus.
 .fmm_hclust_reference_dist <- function(Y_t, locus_index = NULL) {
     freq <- as.matrix(Y_t) / pmax(Matrix::rowSums(Y_t), 1)
@@ -234,7 +220,7 @@ test_that("fitFiniteMixtureModel: init from LocusModel object", {
 }
 
 test_that("hclust distances match explicit within-locus centering", {
-    cnt <- .make_fmm_hclust_cnt()
+    cnt <- .make_cell_cnt_unequal_loci()
     Y_t <- t(cnt@counts)
     total <- as.matrix(sclanternR:::.fmm_hclust_dist(Y_t))
     within <- as.matrix(sclanternR:::.fmm_hclust_dist(Y_t, cnt@locus_1hot))
@@ -250,7 +236,7 @@ test_that("hclust distances match explicit within-locus centering", {
 })
 
 test_that("within-locus distances remove locus means and singleton features", {
-    cnt <- .make_fmm_hclust_cnt()
+    cnt <- .make_cell_cnt_unequal_loci()
     # The second cell adds constants (1, -1, 1) within the three loci;
     # the total count stays fixed, so their within-locus residuals agree.
     Y_t <- Matrix::Matrix(rbind(c(8, 6, 3, 2, 1, 4),
@@ -273,11 +259,11 @@ test_that("within-locus distances remove locus means and singleton features", {
 })
 
 test_that("within-locus initialization uses original loci in every model mode", {
-    cnt <- .make_fmm_hclust_cnt()
+    cnt <- .make_cell_cnt_unequal_loci()
     original_dist <- sclanternR:::.fmm_hclust_dist
     sampled_sizes <- integer()
-    local_mocked_bindings(.fmm_hclust_dist = function(Y_t, locus_1hot = NULL) {
-        actual <- original_dist(Y_t, locus_1hot)
+    local_mocked_bindings(.fmm_hclust_dist = function(Y_t, locus_1hot = NULL, rank = NULL) {
+        actual <- original_dist(Y_t, locus_1hot, rank)
         expected <- .fmm_hclust_reference_dist(Y_t, cnt@locus_index)
         expect_equal(as.matrix(actual)^2, as.matrix(expected)^2,
                      tolerance = 1e-12, ignore_attr = TRUE)
@@ -302,11 +288,53 @@ test_that("within-locus initialization uses original loci in every model mode", 
 })
 
 test_that("hclust covariance defaults to total and validates its value", {
-    cnt <- .make_fmm_hclust_cnt()
+    cnt <- .make_cell_cnt_unequal_loci()
     default <- fitFiniteMixtureModel(cnt, n_clusters = 2, maxiter = 2)
     total <- fitFiniteMixtureModel(cnt, n_clusters = 2, maxiter = 2,
                                    hclust_covariance = "total")
     expect_equal(default, total)
     expect_error(fitFiniteMixtureModel(cnt, hclust_covariance = "invalid"),
                  "'arg' should be one of")
+})
+
+test_that("hclust rank reduction matches the public inner product on sampled cells", {
+    cnt <- .make_cell_cnt_unequal_loci()
+    original_dist <- sclanternR:::.fmm_hclust_dist
+    sampled_sizes <- integer()
+    local_mocked_bindings(.fmm_hclust_dist = function(Y_t, locus_1hot = NULL, rank = NULL) {
+        expect_identical(rank, 1L)
+        actual <- original_dist(Y_t, locus_1hot, rank)
+        sampled <- cnt[, rownames(Y_t)]
+        expected <- computeF2dist(computeCellInnerProduct(
+            sampled, covariance = covariance, rank = 1L))
+        expect_equal(as.matrix(actual)^2, pmax(expected, 0), tolerance = 1e-12)
+        sampled_sizes <<- c(sampled_sizes, nrow(Y_t))
+        actual
+    }, .package = "sclanternR")
+
+    for (covariance in c("total", "within_locus")) {
+        for (mode in list(FALSE, TRUE, "init")) {
+            for (n_init in list(NULL, 4L)) {
+                set.seed(42)
+                res <- fitFiniteMixtureModel(
+                    cnt, n_clusters = 2, combined_multinomial = mode,
+                    hclust_covariance = covariance, hclust_rank = 1L,
+                    n_init_cells = n_init, maxiter = 2)
+                expect_true(all(is.finite(loadings(res))))
+                expect_equal(dim(loadings(res)), c(6L, 2L))
+            }
+        }
+    }
+    expect_equal(sampled_sizes, rep(c(6L, 4L), 6))
+})
+
+test_that("hclust rank defaults to no truncation and validates its value", {
+    cnt <- .make_cell_cnt_unequal_loci()
+    default <- fitFiniteMixtureModel(cnt, n_clusters = 2, maxiter = 2)
+    expect_equal(default, fitFiniteMixtureModel(
+        cnt, n_clusters = 2, maxiter = 2, hclust_rank = NULL))
+    expect_equal(default, fitFiniteMixtureModel(
+        cnt, n_clusters = 2, maxiter = 2, hclust_rank = 100))
+    expect_error(fitFiniteMixtureModel(cnt, hclust_rank = 1.5),
+                 "hclust_rank must be NULL or a positive integer")
 })

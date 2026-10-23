@@ -15,7 +15,8 @@ fitFiniteMixtureModel(
   maxiter = 100,
   tol = 1e-12,
   verbose = FALSE,
-  hclust_covariance = c("total", "within_locus")
+  hclust_covariance = c("total", "within_locus"),
+  hclust_rank = NULL
 )
 }
 \arguments{
@@ -76,7 +77,13 @@ log-likelihood falls below this value (default 1e-4).}
 \code{"total"} (default) uses Euclidean distances between each cell's
 globally normalized feature frequencies. \code{"within_locus"}
 subtracts the between-locus covariance from the total, giving distances
-equivalent to centering features within each locus for each cell.}
+equivalent to centering features within each locus for each cell.
+See \code{\link[=computeCellInnerProduct]{computeCellInnerProduct()}} for the inner-product calculation.}
+
+\item{hclust_rank}{Optional positive integer giving the maximum rank of
+the inner product used by \code{init="hclust"}. \code{NULL} (default)
+disables rank reduction. Retains the leading eigencomponents of the
+selected total or within-locus inner product before computing distances.}
 }
 \value{
 A \code{\linkS4class{FiniteMixtureModel}} object.

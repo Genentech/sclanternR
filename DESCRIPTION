@@ -43,6 +43,7 @@ Collate:
     'LocusNMF-methods.R'
     'RcppExports.R'
     'collapse_rna_editing.R'
+    'computeCellInnerProduct.R'
     'computeF2dist.R'
     'estimateDirichletPseudocount.R'
     'estimateFmmDim.R'

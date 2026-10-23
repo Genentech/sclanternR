@@ -57,3 +57,17 @@ list_cnt <- CellAlleleCounts_from_dataframe(df_counts, min_cells_per_feature = 1
     })
     CellAlleleCounts_from_list(mat_list)
 }
+
+# Unequal locus sizes (2, 3, 1), unequal locus coverage, and an empty cell.
+.make_cell_cnt_unequal_loci <- function() {
+    Y_t <- rbind(c(12, 8, 3, 3, 3, 1),
+                 c(8, 12, 3, 3, 3, 1),
+                 c(3, 3, 12, 8, 3, 1),
+                 c(3, 3, 8, 12, 3, 1),
+                 c(0, 0, 0, 0, 0, 0),
+                 c(5, 3, 8, 6, 2, 6))
+    rownames(Y_t) <- paste0("cell", seq_len(nrow(Y_t)))
+    colnames(Y_t) <- c("chr2_200_REF", "chr2_200_ALT", "chr1_100_REF",
+                      "chr1_100_A", "chr1_100_T", "chr3_300_REF")
+    CellAlleleCounts(t(Y_t))
+}
