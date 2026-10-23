@@ -18,7 +18,7 @@ fitCellDistancePipeline(
   fmm_control = list(),
   n_loci_control = list(),
   reestimate_loadings = TRUE,
-  reestimate_fmm = FALSE,
+  reestimate_fmm = 0,
   verbose = FALSE
 )
 }
@@ -60,7 +60,7 @@ position. When provided, LDA batch correction is applied.}
 a previous pipeline result (list with class
 \code{"CellDistancePipeline"}), or a fastTopics model (list with
 \code{$F} and \code{$L} matrices). When a FiniteMixtureModel or
-pipeline result is provided, FMM fitting is skipped entirely. When a
+pipeline result is provided, initial FMM fitting is skipped. When a
 fastTopics model is provided, it is used to initialize
 \code{\link{fitFiniteMixtureModel}}.}
 
@@ -80,24 +80,29 @@ only before predicting frequencies. If \code{FALSE}, the full-model
 loadings are used. If \code{"auto"}, both options are compared via
 leave-one-out cross-validation on the loci, with the higher-scoring option selected.}
 
-\item{reestimate_fmm}{Logical (default \code{FALSE}).  If
-\code{TRUE}, the FMM is refit on the selected loci, before
-proceeding to PCA/shrinkage steps.}
+\item{reestimate_fmm}{Non-negative integer (default 0), or logical.
+Number of refits on selected loci: 0/\code{FALSE} skips refitting;
+1/\code{TRUE} refits once. Before each additional refit, mutual
+information is recomputed on all input loci and loci are reselected.
+See \code{\link{fitCellClustering}}.}
 
 \item{verbose}{Verbosity level (default \code{FALSE}).}
 }
 \value{
 A named list with S3 class \code{"CellDistancePipeline"} containing:
 \describe{
-\item{fmm}{The fitted \code{\linkS4class{FiniteMixtureModel}}.}
+\item{init_fmm}{The initial \code{\linkS4class{FiniteMixtureModel}}.}
+\item{keep_loci}{Names of the selected loci.}
 \item{scree}{An \code{FmmDimEstimate} object with all eigenvalues from
 the CLR-PCA (for screeplot inspection).}
-\item{mutualinfo}{Named numeric vector of per-locus MI scores (unsorted
-when \code{n_loci} is character; sorted descending when numeric),
-or a matrix (loci x batches) when batch labels are provided.}
+\item{mutualinfo}{Named numeric vector of per-locus MI scores used
+for the final selection, or a matrix
+(loci x batches) when batch labels are provided. \code{NULL}
+when \code{keep_loci} is supplied.}
 \item{mi_cutoff}{An \code{MiCutoffEstimate} object (see
 \code{\link{estimateMiCutoff}}), or \code{NULL} when
-\code{n_loci} is numeric.}
+\code{n_loci} is numeric, \code{keep_loci} is supplied, or
+per-batch selection is used.}
 \item{pseudocount}{The pseudocount value used for shrinkage (numeric
 scalar). When \code{pseudocount = "auto"}, this is the estimated
 value.}
@@ -127,7 +132,7 @@ cell PCA coordinates. Loci are also selected per-batch (union of top loci).
 
 The pipeline supports partial re-entry: pass a previously fitted FMM via
 \code{init} to skip step 1, manually specify \code{n_pcs} to override
-Marchenko-Pastur, or change \code{n_loci} on a rerun.
+the PCA cutoff, or change \code{n_loci} on a rerun.
 }
 \examples{
 \dontrun{

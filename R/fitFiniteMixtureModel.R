@@ -292,7 +292,9 @@ fitFiniteMixtureModel <- function(
 }
 
 .update_Fmat <- function(Y_t, L, feature_pseudocount, locus_1hot) {
-    Fmat_stat <- as.matrix(t(Y_t) %*% L)
+    # Use Matrix's sparse crossproduct: the transpose/%*% dispatch can corrupt
+    # memory with MatrixExtra for wide L (e.g. 20 clusters and 10 features).
+    Fmat_stat <- as.matrix(Matrix::crossprod(Y_t, L))
     Fmat_stat <- sweep(Fmat_stat, 1, feature_pseudocount, '+')
     Fmat_stat_denom <- as.matrix(t(locus_1hot) %*% (locus_1hot %*% Fmat_stat))
     Fmat_stat_denom[Fmat_stat_denom == 0] <- 1

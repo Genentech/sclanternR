@@ -35,7 +35,7 @@ test_that("reusing FMM from previous pipeline result", {
                                        fmm_control = list(maxiter = 10))
     result2 <- fitCellDistancePipeline(cnt, n_loci = 3, init = result1)
 
-    expect_identical(result2$fmm, result1$fmm)
+    expect_identical(result2$init_fmm, result1$init_fmm)
     expect_true(is.matrix(result2$dist))
 })
 
@@ -156,4 +156,48 @@ test_that("numeric pseudocount returns NULL estimate", {
     expect_s3_class(result, "CellDistancePipeline")
     expect_equal(result$pseudocount, 5)
     expect_null(result$pseudocount_estimate)
+})
+
+test_that("explicit loci are refit once for any positive reestimate_fmm", {
+    cnt <- .make_cell_cnt_large()
+    initial <- fitFiniteMixtureModel(cnt, n_clusters = 3, maxiter = 10)
+    fixed <- names(cnt)[c(3, 1)]
+    refitted <- fitFiniteMixtureModel(cnt[fixed], init = initial@L,
+                                      combined_multinomial = FALSE, maxiter = 10)
+    for (refits in list(FALSE, 0, TRUE, 1, 2, 3)) {
+        expected <- if (refits > 0) refitted else initial
+        result <- fitCellDistancePipeline(cnt, init = initial, keep_loci = fixed,
+                                          n_loci = NULL, reestimate_fmm = refits,
+                                          n_pcs = 2, fmm_control = list(maxiter = 10))
+        expect_identical(result$keep_loci, fixed)
+        expect_identical(names(result$projected_fmm), names(expected))
+        expect_equal(result$projected_fmm@L, expected@L)
+        expect_equal(result$projected_fmm@pi, expected@pi)
+    }
+})
+
+test_that("batch labels stay aligned when a supplied FMM reorders cells", {
+    cnt <- .make_cell_cnt_large()
+    fmm <- fitFiniteMixtureModel(cnt, n_clusters = 3, maxiter = 10)
+    permutation <- as.vector(rbind(1:10, 11:20))
+    shuffled <- cnt[, permutation]
+    batch <- rep(c("A", "B"), each = 10)[permutation]
+    named_batch <- setNames(batch, colnames(shuffled))
+    for (fixed in list(NULL, names(cnt)[1:2])) {
+        positional <- fitCellDistancePipeline(shuffled, init = fmm, batch = batch,
+                                              n_loci = 2, keep_loci = fixed, n_pcs = 2)
+        named <- fitCellDistancePipeline(shuffled, init = fmm, batch = named_batch,
+                                         n_loci = 2, keep_loci = fixed, n_pcs = 2)
+        expect_identical(positional, named)
+    }
+})
+
+test_that("explicit locus indices refer to the input counts", {
+    cnt <- .make_cell_cnt_large()
+    fmm <- fitFiniteMixtureModel(cnt, n_clusters = 3, maxiter = 10)
+    reordered <- cnt[rev(names(cnt))]
+    indexed <- fitCellDistancePipeline(reordered, init = fmm, keep_loci = 1:2, n_pcs = 2)
+    named <- fitCellDistancePipeline(reordered, init = fmm,
+                                     keep_loci = names(reordered)[1:2], n_pcs = 2)
+    expect_identical(indexed, named)
 })

@@ -76,7 +76,12 @@ estimateMiCutoff <- function(
 
     mi <- mutualinfo(model, x)
 
-    n_alleles <- as.integer(Matrix::rowSums(model@locus_1hot))
+    locus_1hot <- if (is(model, "FiniteMixtureModel") && !is.null(x)) {
+        x@locus_1hot
+    } else {
+        model@locus_1hot
+    }
+    n_alleles <- as.integer(Matrix::rowSums(locus_1hot))
     K <- ncol(model@Fmat)
     method_result <- .apply_mi_cutoff(mi, method, n_alleles, K,
                                       alpha, mad_threshold)

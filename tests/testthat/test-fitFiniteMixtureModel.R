@@ -338,3 +338,25 @@ test_that("hclust rank defaults to no truncation and validates its value", {
     expect_error(fitFiniteMixtureModel(cnt, hclust_rank = 1.5),
                  "hclust_rank must be NULL or a positive integer")
 })
+# Regression for native heap corruption in transpose/sparse-dense multiplication
+# when the number of clusters exceeds the number of features.
+test_that("FMM frequency updates with many clusters match a dense reference", {
+    cnt <- .make_cell_cnt_large()
+    Y_t <- MatrixExtra::t_shallow(as(cnt, "CsparseMatrix"))
+    L <- diag(nrow(Y_t))
+    pc <- Matrix::colSums(Y_t)
+    pc <- pc / sum(pc)
+    for (hot in list(cnt@locus_1hot,
+                     Matrix::Matrix(1, nrow = 1, ncol = ncol(Y_t), sparse = TRUE))) {
+        stat <- sweep(crossprod(as.matrix(Y_t), L), 1, pc, "+")
+        denom <- t(as.matrix(hot)) %*% (as.matrix(hot) %*% stat)
+        expected <- stat / denom
+        actual <- sclanternR:::.update_Fmat(Y_t, L, pc, hot)
+        expect_equal(actual, expected)
+    }
+    fmm <- fitFiniteMixtureModel(cnt, maxiter = 2)
+    expect_equal(dim(fmm@L), c(20L, 20L))
+    expect_true(all(is.finite(fmm@Fmat)))
+    expect_equal(unname(rowSums(fmm@L)), rep(1, 20))
+    gc()
+})

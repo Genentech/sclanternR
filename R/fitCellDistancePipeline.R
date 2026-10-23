@@ -15,7 +15,7 @@
 #'
 #' The pipeline supports partial re-entry: pass a previously fitted FMM via
 #' \code{init} to skip step 1, manually specify \code{n_pcs} to override
-#' Marchenko-Pastur, or change \code{n_loci} on a rerun.
+#' the PCA cutoff, or change \code{n_loci} on a rerun.
 #'
 #' @param cell_allele_counts A \code{\linkS4class{CellAlleleCounts}} object.
 #' @param n_clusters Number of clusters for the initial FMM (default 20).
@@ -46,7 +46,7 @@
 #'     a previous pipeline result (list with class
 #'     \code{"CellDistancePipeline"}), or a fastTopics model (list with
 #'     \code{$F} and \code{$L} matrices). When a FiniteMixtureModel or
-#'     pipeline result is provided, FMM fitting is skipped entirely. When a
+#'     pipeline result is provided, initial FMM fitting is skipped. When a
 #'     fastTopics model is provided, it is used to initialize
 #'     \code{\link{fitFiniteMixtureModel}}.
 #' @param compute_dist Logical. If \code{TRUE} (default), compute the full
@@ -61,22 +61,27 @@
 #'     only before predicting frequencies. If \code{FALSE}, the full-model
 #'     loadings are used. If \code{"auto"}, both options are compared via
 #'     leave-one-out cross-validation on the loci, with the higher-scoring option selected.
-#' @param reestimate_fmm Logical (default \code{FALSE}).  If
-#'     \code{TRUE}, the FMM is refit on the selected loci, before
-#'     proceeding to PCA/shrinkage steps.
+#' @param reestimate_fmm Non-negative integer (default 0), or logical.
+#'     Number of refits on selected loci: 0/\code{FALSE} skips refitting;
+#'     1/\code{TRUE} refits once. Before each additional refit, mutual
+#'     information is recomputed on all input loci and loci are reselected.
+#'     See \code{\link{fitCellClustering}}.
 #' @param verbose Verbosity level (default \code{FALSE}).
 #'
 #' @returns A named list with S3 class \code{"CellDistancePipeline"} containing:
 #'   \describe{
-#'     \item{fmm}{The fitted \code{\linkS4class{FiniteMixtureModel}}.}
+#'     \item{init_fmm}{The initial \code{\linkS4class{FiniteMixtureModel}}.}
+#'     \item{keep_loci}{Names of the selected loci.}
 #'     \item{scree}{An \code{FmmDimEstimate} object with all eigenvalues from
 #'         the CLR-PCA (for screeplot inspection).}
-#'     \item{mutualinfo}{Named numeric vector of per-locus MI scores (unsorted
-#'         when \code{n_loci} is character; sorted descending when numeric),
-#'         or a matrix (loci x batches) when batch labels are provided.}
+#'     \item{mutualinfo}{Named numeric vector of per-locus MI scores used
+#'         for the final selection, or a matrix
+#'         (loci x batches) when batch labels are provided. \code{NULL}
+#'         when \code{keep_loci} is supplied.}
 #'     \item{mi_cutoff}{An \code{MiCutoffEstimate} object (see
 #'         \code{\link{estimateMiCutoff}}), or \code{NULL} when
-#'         \code{n_loci} is numeric.}
+#'         \code{n_loci} is numeric, \code{keep_loci} is supplied, or
+#'         per-batch selection is used.}
 #'     \item{pseudocount}{The pseudocount value used for shrinkage (numeric
 #'         scalar). When \code{pseudocount = "auto"}, this is the estimated
 #'         value.}
@@ -133,24 +138,26 @@ fitCellDistancePipeline <- function(
     fmm_control = list(),
     n_loci_control = list(),
     reestimate_loadings = TRUE,
-    reestimate_fmm = FALSE,
+    reestimate_fmm = 0,
     verbose = FALSE
 ) {
     if (!is(cell_allele_counts, "CellAlleleCounts"))
         stop("cell_allele_counts must be a CellAlleleCounts object")
+    reestimate_fmm <- .validate_reestimate_fmm(reestimate_fmm)
+    if (is.null(keep_loci)) {
+        n_loci <- .validate_n_loci(n_loci)
+    } else {
+        keep_loci <- names(cell_allele_counts[keep_loci])
+        if (length(keep_loci) == 0L) stop("keep_loci must select at least one locus")
+    }
+    if (!is.null(batch)) {
+        batch <- .resolve_batch(batch, colnames(cell_allele_counts))
+        names(batch) <- colnames(cell_allele_counts)
+    }
     auto_pseudocount <- identical(pseudocount, "auto")
     if (!auto_pseudocount && (!is.numeric(pseudocount) || length(pseudocount) != 1
                               || pseudocount <= 0)) {
         stop("pseudocount must be a positive number or \"auto\"")
-    }
-    mi_method <- NULL
-    if (is.character(n_loci)) {
-        mi_method <- match.arg(n_loci, c("fdr", "mad", "elbow"))
-    } else if (!is.null(n_loci) && (!is.numeric(n_loci) || length(n_loci) != 1 || n_loci < 1)) {
-        stop("n_loci must be a positive integer or a method name (character)")
-    }
-    if (is.null(n_loci) && is.null(keep_loci)) {
-        stop("n_loci must be specified or keep_loci must be non-NULL")
     }
     auto_loadings <- identical(reestimate_loadings, "auto")
     if (!auto_loadings && !is.logical(reestimate_loadings)) {
@@ -187,84 +194,46 @@ fitCellDistancePipeline <- function(
     }
 
     cell_names <- colnames(fmm)
+    if (!setequal(cell_names, colnames(cell_allele_counts)))
+        stop("init and cell_allele_counts must contain the same cells")
+    cell_allele_counts <- cell_allele_counts[, cell_names]
 
-    if (!is.null(batch)) {
-        batch <- .resolve_batch(batch, cell_names)
-    }
+    if (is.null(keep_loci)) {
+        clustering <- fitCellClustering(
+            cell_allele_counts,
+            init = fmm,
+            n_loci = n_loci,
+            batch = batch,
+            reestimate_fmm = reestimate_fmm,
+            fmm_control = fmm_control,
+            n_loci_control = n_loci_control,
+            verbose = verbose
+        )
 
-    # --- Step 2: Compute MI and select top loci ---
-
-    mi_fmm <- fmm
-    mi_cutoff <- NULL
-
-    if (is.null(batch)) {
-        .log_msg(1, verbose, "Step 2: Computing mutual information across %d loci",
-                 length(mi_fmm))
-        if (is.null(keep_loci) && !is.null(mi_method)) {
-            mi_cutoff <- estimateMiCutoff(mi_fmm, cell_allele_counts, method = mi_method)
-            mi <- mi_cutoff$mutualinfo
-            keep_loci <- mi_cutoff$loci
-            .log_msg(1, verbose,
-                     "Automatic MI cutoff (%s): %.4g, %d loci selected",
-                     mi_method, mi_cutoff$cutoff, length(keep_loci))
-        } else {
-            mi <- mutualinfo(mi_fmm, cell_allele_counts)
-            if (is.null(keep_loci)) {
-                mi_sort <- sort(mi, decreasing = TRUE)
-                keep_loci <- names(mi_sort)[seq_len(min(n_loci, length(mi_sort)))]
-            }
-        }
+        pca_fmm <- clustering$fmm
+        keep_loci <- clustering$keep_loci
+        mi <- clustering$mutualinfo
+        mi_cutoff <- clustering$mi_cutoff
     } else {
-        .log_msg(1, verbose,
-                 "Step 3: Computing per-batch mutual information (%d batches)",
-                 nlevels(batch))
-
-        mi <- sapply(levels(batch), function(b) {
-            cells_b <- cell_names[batch == b]
-            mutualinfo(mi_fmm[, cells_b], cell_allele_counts[, cells_b])
-        })
-        if (is.null(keep_loci)) {
-            if (!is.null(mi_method)) {
-                n_alleles <- as.integer(Matrix::rowSums(mi_fmm@locus_1hot))
-                K <- ncol(mi_fmm@Fmat)
-                keep_loci <- lapply(colnames(mi), function(b) {
-                    mi_col <- mi[, b]
-                    res <- .apply_mi_cutoff(mi_col, mi_method,
-                                           n_alleles, K)
-                    names(mi_col)[mi_col >= res$cutoff]
-                })
-                keep_loci <- unique(unlist(keep_loci))
-            } else {
-                keep_loci <- apply(mi, 2, function(x) {
-                    names(sort(x, decreasing=TRUE))[seq_len(n_loci)]
-                }, simplify=FALSE)
-                keep_loci <- unique(unlist(keep_loci))
-            }
+        pca_fmm <- fmm
+        if (isTRUE(reestimate_fmm > 0)) {
+            .log_msg(1, verbose, "Refitting FMM on %d fixed loci", length(keep_loci))
+            fmm_args <- modifyList(list(verbose = verbose), fmm_control)
+            fmm_args$cell_allele_cnt_list <- cell_allele_counts[keep_loci]
+            fmm_args$init <- pca_fmm@L
+            fmm_args$combined_multinomial <- FALSE
+            pca_fmm <- do.call(fitFiniteMixtureModel, fmm_args)
         }
+        mi <- NULL
+        mi_cutoff <- NULL
     }
-    if (length(keep_loci) == 0L) {
-        stop("Automatic MI cutoff selected 0 loci. ",
-             "Try a different method or specify n_loci as a number.")
-    }
-    .log_msg(1, verbose, "Selected %d informative loci", length(keep_loci))
+
+    if (!is.null(batch)) batch <- .resolve_batch(batch, cell_names)
 
     # --- Step 3: CLR-PCA on topic frequencies ---
 
     .log_msg(1, verbose, "Step 3: CLR-PCA on topic frequencies")
 
-    if (reestimate_fmm) {
-        fmm_args <- modifyList(
-            list(cell_allele_cnt_list = cell_allele_counts[keep_loci],
-                 init = fmm@L,
-                 combined_multinomial = FALSE,
-                 verbose = verbose),
-            fmm_control
-        )
-        pca_fmm <- do.call(fitFiniteMixtureModel, fmm_args)
-    } else {
-        pca_fmm <- fmm
-    }
-    
     pca <- .clr_weighted_pca(pca_fmm@Fmat, pca_fmm@pi, pca_fmm@locus_1hot)
 
     if (is.null(n_pcs) || is.character(n_pcs)) {
@@ -387,6 +356,7 @@ fitCellDistancePipeline <- function(
 
     result <- list(
         init_fmm = fmm,
+        keep_loci = keep_loci,
         final_fmm = model_sub,
         projected_fmm = projected_fmm,
         scree = scree,

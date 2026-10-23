@@ -9,8 +9,8 @@
 \alias{ncol,CellAlleleCounts-method}
 \alias{colnames,CellAlleleCounts-method}
 \alias{colSums,CellAlleleCounts-method}
-\alias{[[,CellAlleleCounts,numeric,ANY-method}
-\alias{[[,CellAlleleCounts,character,ANY-method}
+\alias{[[,CellAlleleCounts,numeric-method}
+\alias{[[,CellAlleleCounts,character-method}
 \alias{[,CellAlleleCounts,ANY,ANY,ANY-method}
 \alias{[,CellAlleleCounts,ANY,missing,ANY-method}
 \alias{[,CellAlleleCounts,missing,ANY,ANY-method}
@@ -31,9 +31,9 @@
 
 \S4method{colSums}{CellAlleleCounts}(x)
 
-\S4method{[[}{CellAlleleCounts,numeric,ANY}(x, i)
+\S4method{[[}{CellAlleleCounts,numeric}(x, i)
 
-\S4method{[[}{CellAlleleCounts,character,ANY}(x, i)
+\S4method{[[}{CellAlleleCounts,character}(x, i)
 
 \S4method{[}{CellAlleleCounts,ANY,ANY,ANY}(x, i, j, ..., drop = TRUE)
 

@@ -81,7 +81,7 @@ setMethod("mutualinfo", signature(object = "FiniteMixtureModel", x = "CellAllele
 
         Fmat_stat <- t(as.matrix(t(L) %*% Y_t))
 
-        .compute_vectorized_mutinfo(Fmat_stat, object@locus_1hot)
+        .compute_vectorized_mutinfo(Fmat_stat, x@locus_1hot)
     }
 )
 

@@ -49,6 +49,7 @@ Collate:
     'estimateFmmDim.R'
     'estimateMiCutoff.R'
     'filter_cell_allele_counts.R'
+    'fitCellClustering.R'
     'fitCellDistancePipeline.R'
     'fitFiniteMixtureModel.R'
     'fitLocusNMF.R'
