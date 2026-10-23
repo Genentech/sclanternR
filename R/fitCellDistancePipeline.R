@@ -1,11 +1,12 @@
 
 #' Fit a cell distance pipeline via FMM and CLR-PCA
 #'
-#' Multi-step pipeline: (1) fit a FiniteMixtureModel, (2) perform CLR-PCA on
-#' topic frequencies and replace with low-rank projection, (3) select top loci
-#' by mutual information, (4) shrink cell-level frequencies toward model
-#' predictions, (5) compute PCA on shrunken frequencies, and optionally (6)
-#' compute pairwise F2 distances.
+#' Multi-step pipeline: (1) fit a FiniteMixtureModel, (2) select top
+#' loci by mutual information, (3) perform CLR-PCA on topic
+#' frequencies and replace with low-rank projection, , (4) shrink
+#' cell-level frequencies toward model predictions, (5) compute PCA on
+#' shrunken frequencies, and optionally (6) compute pairwise F2
+#' distances.
 #'
 #' When batch labels are provided, LDA-based batch correction is applied twice:
 #' once to the CLR-PCA topic coordinates (removing batch discriminant directions
@@ -60,6 +61,9 @@
 #'     only before predicting frequencies. If \code{FALSE}, the full-model
 #'     loadings are used. If \code{"auto"}, both options are compared via
 #'     leave-one-out cross-validation on the loci, with the higher-scoring option selected.
+#' @param reestimate_fmm Logical (default \code{FALSE}).  If
+#'     \code{TRUE}, the FMM is refit on the selected loci, before
+#'     proceeding to PCA/shrinkage steps.
 #' @param verbose Verbosity level (default \code{FALSE}).
 #'
 #' @returns A named list with S3 class \code{"CellDistancePipeline"} containing:
@@ -129,6 +133,7 @@ fitCellDistancePipeline <- function(
     fmm_control = list(),
     n_loci_control = list(),
     reestimate_loadings = TRUE,
+    reestimate_fmm = FALSE,
     verbose = FALSE
 ) {
     if (!is(cell_allele_counts, "CellAlleleCounts"))
@@ -187,50 +192,13 @@ fitCellDistancePipeline <- function(
         batch <- .resolve_batch(batch, cell_names)
     }
 
-    # --- Step 2: CLR-PCA on topic frequencies ---
-    .log_msg(1, verbose, "Step 2: CLR-PCA on topic frequencies")
-    pca <- .clr_weighted_pca(fmm@Fmat, fmm@pi, fmm@locus_1hot)
+    # --- Step 2: Compute MI and select top loci ---
 
-    if (is.null(n_pcs) || is.character(n_pcs)) {
-        method <- if (is.character(n_pcs)) n_pcs else "gavish_donoho"
-        scree <- estimateFmmDimensionality(fmm, method = method)
-        min_pcs <- if (is.null(batch)) 2L else 1L + nlevels(batch)
-        n_pcs <- max(min_pcs, scree$cutoff_index)
-    } else {
-        scree <- NULL
-    }
-    .log_msg(1, verbose, "Using %d PCs", n_pcs)
-
-    # Topic PCA coordinates: K x n_pcs
-    r <- min(n_pcs, length(pca$d))
-    M <- pca$V[, seq_len(r), drop = FALSE] *
-         rep(pca$d[seq_len(r)], each = nrow(pca$V))
-    U_r <- pca$U[, seq_len(r), drop = FALSE]
-
-    # --- Step 2b: LDA correction on CLR-PCA (if batch) ---
-    if (!is.null(batch)) {
-        .log_msg(1, verbose, "Applying LDA batch correction to CLR-PCA")
-        X_cell <- loadings(fmm) %*% M
-        Q <- .compute_lda_basis(X_cell, batch)
-        if (!is.null(Q)) {
-            M <- M - M %*% tcrossprod(Q)
-        }
-    }
-
-    # Reconstruct Fmat from (possibly corrected) low-rank CLR
-    Fmat_proj <- .reconstruct_fmat(U_r, M, pca$mu, pca$pi_vec, pca$locus_1hot,
-                                   pca$keep, fmm@locus_1hot)
-    projected_fmm <- .replace_fmm_fmat(fmm, Fmat_proj)
-
-    # --- Step 3: Compute MI and select top loci ---
-
-    #mi_fmm <- projected_fmm
-    # use original FMM to be consistent with user manually selecting cutoff from it
     mi_fmm <- fmm
     mi_cutoff <- NULL
 
     if (is.null(batch)) {
-        .log_msg(1, verbose, "Step 3: Computing mutual information across %d loci",
+        .log_msg(1, verbose, "Step 2: Computing mutual information across %d loci",
                  length(mi_fmm))
         if (is.null(keep_loci) && !is.null(mi_method)) {
             mi_cutoff <- estimateMiCutoff(mi_fmm, cell_allele_counts, method = mi_method)
@@ -280,14 +248,63 @@ fitCellDistancePipeline <- function(
     }
     .log_msg(1, verbose, "Selected %d informative loci", length(keep_loci))
 
+    # --- Step 3: CLR-PCA on topic frequencies ---
+
+    .log_msg(1, verbose, "Step 3: CLR-PCA on topic frequencies")
+
+    if (reestimate_fmm) {
+        fmm_args <- modifyList(
+            list(cell_allele_cnt_list = cell_allele_counts[keep_loci],
+                 init = fmm@L,
+                 combined_multinomial = FALSE,
+                 verbose = verbose),
+            fmm_control
+        )
+        pca_fmm <- do.call(fitFiniteMixtureModel, fmm_args)
+    } else {
+        pca_fmm <- fmm
+    }
+    
+    pca <- .clr_weighted_pca(pca_fmm@Fmat, pca_fmm@pi, pca_fmm@locus_1hot)
+
+    if (is.null(n_pcs) || is.character(n_pcs)) {
+        method <- if (is.character(n_pcs)) n_pcs else "gavish_donoho"
+        scree <- estimateFmmDimensionality(pca_fmm, method = method)
+        min_pcs <- if (is.null(batch)) 2L else 1L + nlevels(batch)
+        n_pcs <- max(min_pcs, scree$cutoff_index)
+    } else {
+        scree <- NULL
+    }
+    .log_msg(1, verbose, "Using %d PCs", n_pcs)
+
+    # Topic PCA coordinates: K x n_pcs
+    r <- min(n_pcs, length(pca$d))
+    M <- pca$V[, seq_len(r), drop = FALSE] *
+         rep(pca$d[seq_len(r)], each = nrow(pca$V))
+    U_r <- pca$U[, seq_len(r), drop = FALSE]
+
+    # --- Step 3b: LDA correction on CLR-PCA (if batch) ---
+    if (!is.null(batch)) {
+        .log_msg(1, verbose, "Applying LDA batch correction to CLR-PCA")
+        X_cell <- loadings(pca_fmm) %*% M
+        Q <- .compute_lda_basis(X_cell, batch)
+        if (!is.null(Q)) {
+            M <- M - M %*% tcrossprod(Q)
+        }
+    }
+
+    # Reconstruct Fmat from (possibly corrected) low-rank CLR
+    Fmat_proj <- .reconstruct_fmat(U_r, M, pca$mu, pca$pi_vec, pca$locus_1hot,
+                                   pca$keep, pca_fmm@locus_1hot)
+    projected_fmm <- .replace_fmm_fmat(pca_fmm, Fmat_proj)
+
+
     # --- Subset model and counts to selected loci ---
     model_sub <- projected_fmm[keep_loci]
     cac_sub <- cell_allele_counts[keep_loci]
 
     if (auto_loadings) {
-        # NOTE: It seems to work better to use the original FMM than projected
-        # model when deciding whether the original loadings are informative.
-        # (TODO: Check how projected model minus LDA would do?)
+        # TODO: Deprecate reestimate_loadings="auto",FALSE
         ll_diff <- .loo_loci_loglik(fmm[keep_loci], cac_sub, fmm@L)
 
         if (ll_diff >= 0) {
@@ -304,6 +321,7 @@ fitCellDistancePipeline <- function(
         loadings_method <- "reestimated"
         ll_diff <- NULL
     } else {
+        # TODO: Deprecate reestimate_loadings="auto",FALSE
         cell_loadings <- model_sub@L
         loadings_method <- "full"
         ll_diff <- NULL

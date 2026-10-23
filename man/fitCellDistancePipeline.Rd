@@ -18,6 +18,7 @@ fitCellDistancePipeline(
   fmm_control = list(),
   n_loci_control = list(),
   reestimate_loadings = TRUE,
+  reestimate_fmm = FALSE,
   verbose = FALSE
 )
 }
@@ -79,6 +80,10 @@ only before predicting frequencies. If \code{FALSE}, the full-model
 loadings are used. If \code{"auto"}, both options are compared via
 leave-one-out cross-validation on the loci, with the higher-scoring option selected.}
 
+\item{reestimate_fmm}{Logical (default \code{FALSE}).  If
+\code{TRUE}, the FMM is refit on the selected loci, before
+proceeding to PCA/shrinkage steps.}
+
 \item{verbose}{Verbosity level (default \code{FALSE}).}
 }
 \value{
@@ -107,11 +112,12 @@ returned). Can be used to compute distances downstream via
 }
 }
 \description{
-Multi-step pipeline: (1) fit a FiniteMixtureModel, (2) perform CLR-PCA on
-topic frequencies and replace with low-rank projection, (3) select top loci
-by mutual information, (4) shrink cell-level frequencies toward model
-predictions, (5) compute PCA on shrunken frequencies, and optionally (6)
-compute pairwise F2 distances.
+Multi-step pipeline: (1) fit a FiniteMixtureModel, (2) select top
+loci by mutual information, (3) perform CLR-PCA on topic
+frequencies and replace with low-rank projection, , (4) shrink
+cell-level frequencies toward model predictions, (5) compute PCA on
+shrunken frequencies, and optionally (6) compute pairwise F2
+distances.
 }
 \details{
 When batch labels are provided, LDA-based batch correction is applied twice:
