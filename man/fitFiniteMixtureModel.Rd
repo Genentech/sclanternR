@@ -14,7 +14,8 @@ fitFiniteMixtureModel(
   n_init_cells = NULL,
   maxiter = 100,
   tol = 1e-12,
-  verbose = FALSE
+  verbose = FALSE,
+  hclust_covariance = c("total", "within_locus")
 )
 }
 \arguments{
@@ -38,9 +39,9 @@ distribution on the K-simplex, where K is set by
 \item \code{"fastTopics"}: an initial fastTopics model is fit
 and L is extracted from it.
 \item \code{"hclust"} (the default): hierarchical clustering on
-Euclidean distances of global allele frequencies is used
-to obtain initial cluster assignments, from which L is
-derived.
+distances of global allele frequencies, controlled by
+\code{hclust_covariance}, is used to obtain initial cluster
+assignments, from which L is derived.
 }}
 
 \item{loc_pseudocount}{Pseudocount per locus (default 1). Corresponds to
@@ -70,6 +71,12 @@ log-likelihood falls below this value (default 1e-4).}
 
 \item{verbose}{Verbosity level: 0/FALSE for silent, 1/TRUE for milestones,
 2 for per-iteration log-likelihood, 3 for sub-step timing.}
+
+\item{hclust_covariance}{Covariance used for \code{init="hclust"}:
+\code{"total"} (default) uses Euclidean distances between each cell's
+globally normalized feature frequencies. \code{"within_locus"}
+subtracts the between-locus covariance from the total, giving distances
+equivalent to centering features within each locus for each cell.}
 }
 \value{
 A \code{\linkS4class{FiniteMixtureModel}} object.
