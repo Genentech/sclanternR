@@ -1,7 +1,7 @@
 ---
 title: sclanternR vignette
 author: Jack Kamm
-date: "Revised: 2026-08-21"
+date: "Revised: 2026-10-24"
 output: rmarkdown::html_vignette
 package: sclanternR
 vignette: >
