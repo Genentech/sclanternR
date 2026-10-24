@@ -62,7 +62,14 @@ computeCellInnerProduct <- function(cell_allele_counts,
     rs <- Matrix::rowSums(Y_t)
     rs[rs == 0] <- 1
     freq_mat <- Matrix::Diagonal(x = 1 / rs) %*% Y_t
+    rownames(freq_mat) <- rownames(Y_t)
 
+    .frequency_inner_product(freq_mat, locus_1hot, rank)
+}
+
+# Assumes frequencies are already normalized. May contain empty
+# cells/clusters, avoid renormalizing those.
+.frequency_inner_product <- function(freq_mat, locus_1hot = NULL, rank = NULL) {
     crossp <- as.matrix(Matrix::tcrossprod(freq_mat))
     if (!is.null(locus_1hot)) {
         n_features <- Matrix::rowSums(locus_1hot)
@@ -80,6 +87,6 @@ computeCellInnerProduct <- function(cell_allele_counts,
                         sqrt(pmax(eig$values[keep], 0)), "*")
         crossp <- tcrossprod(coords)
     }
-    dimnames(crossp) <- list(rownames(Y_t), rownames(Y_t))
+    dimnames(crossp) <- list(rownames(freq_mat), rownames(freq_mat))
     crossp
 }

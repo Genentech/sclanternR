@@ -32,7 +32,8 @@
 #'     \item{batch}{Resolved batch factor, or \code{NULL}.}
 #'     \item{reestimate_fmm}{Number of refits performed.}
 #'   }
-#' @seealso \code{\link{fitFiniteMixtureModel}}, \code{\link{mutualinfo}}
+#' @seealso \code{\link{fitFiniteMixtureModel}}, \code{\link{mutualinfo}},
+#'     [fitPseudobulkClustering()].
 #' @include FiniteMixtureModel-class.R
 #' @export
 fitCellClustering <- function(

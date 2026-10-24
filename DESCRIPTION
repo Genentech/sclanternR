@@ -53,6 +53,7 @@ Collate:
     'fitCellDistancePipeline.R'
     'fitFiniteMixtureModel.R'
     'fitLocusNMF.R'
+    'fitPseudobulkClustering.R'
     'heatmapLocusMatrixList.R'
     'logging.R'
     'mutualinfo.R'

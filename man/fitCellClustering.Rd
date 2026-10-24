@@ -68,5 +68,6 @@ refit with the selected loci. The refitting procedure can be
 iteratively rerun.
 }
 \seealso{
-\code{\link{fitFiniteMixtureModel}}, \code{\link{mutualinfo}}
+\code{\link{fitFiniteMixtureModel}}, \code{\link{mutualinfo}},
+\code{\link[=fitPseudobulkClustering]{fitPseudobulkClustering()}}.
 }
