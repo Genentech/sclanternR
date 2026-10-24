@@ -167,6 +167,7 @@ test_that("resuming clustering gives the same pipeline without refitting", {
                           .package = "sclanternR")
     resumed <- fitCellDistancePipeline(cnt, init = clustering$fmm,
                                        keep_loci = clustering$keep_loci,
+                                       reestimate_fmm = 0,
                                        batch = clustering$batch, n_pcs = 2)
     downstream <- c("keep_loci", "final_fmm", "projected_fmm", "cell_pca", "dist",
                     "freq_list", "cluster_loadings", "pseudocount", "loadings_choice")
@@ -174,6 +175,7 @@ test_that("resuming clustering gives the same pipeline without refitting", {
     reordered <- fitCellDistancePipeline(cnt[, rev(colnames(cnt))],
                                          init = clustering$fmm,
                                          keep_loci = clustering$keep_loci,
+                                         reestimate_fmm = 0,
                                          batch = clustering$batch, n_pcs = 2)
     expect_identical(reordered, resumed)
 })

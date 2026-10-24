@@ -159,9 +159,9 @@ ggtree(tr, layout='ape') %<+%
     theme(legend.position='bottom')
 ```
 
-# Rerunning with better parameters
+# Rerunning with adjusted parameters
 
-`fitCellDistancePipeline()` has several tuning parameters, and it tries to set reasonable defaults automatically. However, the automatic heuristics are imperfect, and it's recommended to visualize these cutoffs and set them manually. 
+`fitCellDistancePipeline()` has several tuning parameters, and it tries to set reasonable defaults automatically. However, the automatic heuristics are imperfect, and it's recommended to visualize these cutoffs and consider rerunning the pipeline with manual settings. 
 
 ## Number of loci
 
@@ -187,7 +187,7 @@ plot(fit$scree)
 
 ## Rerunning the pipeline
 
-The pipeline can be rerun with the manually selected cutoffs. We can pass the previous fit in order to skip intermediate steps that are the same between the 2 runs (namely, the initial clustering procedure). We demonstrate here, rerunning with fewer loci and PCs.
+The pipeline can be rerun with the manually selected cutoffs. We can pass the previous fit in order to skip slow intermediate steps that are the same between the 2 runs (namely, the initial clustering procedure). We demonstrate here, rerunning with fewer loci and PCs.
 
 ```{r}
 fit2 <- fitCellDistancePipeline(
@@ -197,43 +197,6 @@ fit2 <- fitCellDistancePipeline(
     init = fit,
     verbose=1
 )
-```
-
-## Plot updated PCA
-
-We plot the updated PCA from the rerun fit.
-
-```{r, fig.width=5, fig.height=5}
-ggplot(
-    cbind(
-        cell_meta,
-        fit2$cell_pca
-    )[shuffle_order,],
-    aes(x=PC1, y=PC2, color=clone)
-) +
-    geom_point(shape=1) +
-    scale_color_manual(values=clone_colors) +
-    theme_bw(base_size=16)
-```
-
-## Plot updated tree
-
-We recompute the neighbor joining tree and plot it.
-
-```{r, fig.width=5, fig.height=5}
-tr <- ape::nj(fit2$dist)
-
-ggtree(tr, layout='ape') %<+%
-    cell_meta +
-    ggrastr::rasterise(geom_point(
-        data = function(d) {
-            d %>% dplyr::filter(isTip) %>% .[shuffle_order,]
-        },
-        #shape=1,
-        aes(color = clone)
-    ), dpi=300) +
-    scale_color_manual(values=clone_colors) +
-    theme(legend.position='bottom')
 ```
 
 # Plotting heatmap of informative loci

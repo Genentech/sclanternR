@@ -18,7 +18,7 @@ fitCellDistancePipeline(
   fmm_control = list(),
   n_loci_control = list(),
   reestimate_loadings = TRUE,
-  reestimate_fmm = 0,
+  reestimate_fmm = 5,
   verbose = FALSE
 )
 }

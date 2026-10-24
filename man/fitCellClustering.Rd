@@ -12,7 +12,7 @@ fitCellClustering(
   init = NULL,
   fmm_control = list(),
   n_loci_control = list(),
-  reestimate_fmm = 3,
+  reestimate_fmm = 5,
   verbose = FALSE
 )
 }
