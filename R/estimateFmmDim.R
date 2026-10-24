@@ -7,7 +7,7 @@
 #' @param model A \code{\linkS4class{FiniteMixtureModel}}.
 #' @param method Dimensionality selection method. One of:
 #'   \describe{
-#'     \item{\code{"gavish_donoho"}}{(Default) Optimal hard threshold on
+#'     \item{\code{"gavish_donoho"}}{Optimal hard threshold on
 #'         singular values (Gavish & Donoho 2014).}
 #'     \item{\code{"marchenko_pastur"}}{Retain eigenvalues exceeding
 #'         the Marchenko-Pastur upper edge.}
@@ -30,7 +30,7 @@
 #' @include FiniteMixtureModel-class.R
 estimateFmmDimensionality <- function(
     model,
-    method = c("gavish_donoho", "marchenko_pastur", "kneedle")
+    method = c("marchenko_pastur", "gavish_donoho", "kneedle")
 ) {
     if (!is(model, "FiniteMixtureModel"))
         stop("model must be a FiniteMixtureModel")

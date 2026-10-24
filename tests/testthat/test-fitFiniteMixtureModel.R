@@ -287,12 +287,12 @@ test_that("within-locus initialization uses original loci in every model mode", 
     expect_equal(sampled_sizes, rep(c(6L, 4L), 3))
 })
 
-test_that("hclust covariance defaults to total and validates its value", {
+test_that("hclust covariance defaults to within_locus and validates its value", {
     cnt <- .make_cell_cnt_unequal_loci()
     default <- fitFiniteMixtureModel(cnt, n_clusters = 2, maxiter = 2)
-    total <- fitFiniteMixtureModel(cnt, n_clusters = 2, maxiter = 2,
-                                   hclust_covariance = "total")
-    expect_equal(default, total)
+    within <- fitFiniteMixtureModel(cnt, n_clusters = 2, maxiter = 2,
+                                    hclust_covariance = "within_locus")
+    expect_equal(default, within)
     expect_error(fitFiniteMixtureModel(cnt, hclust_covariance = "invalid"),
                  "'arg' should be one of")
 })

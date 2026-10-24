@@ -33,7 +33,7 @@
 #'     \code{\link{estimateDirichletPseudocount}}.
 #' @param n_pcs Number of principal components, or a character string naming a
 #'     method from \code{\link{estimateFmmDimensionality}} (default
-#'     \code{NULL} uses \code{"gavish_donoho"}). When automatic, a minimum
+#'     \code{NULL} uses \code{"marchenko_pastur"}). When automatic, a minimum
 #'     of 2 dimensions is enforced (or \code{2 + nlevels(batch) - 1} when
 #'     batch correction is active) to prevent LDA from collapsing
 #'     dimensionality.
@@ -127,7 +127,7 @@
 fitCellDistancePipeline <- function(
     cell_allele_counts,
     n_clusters = 20,
-    n_loci = "fdr",
+    n_loci = 30,
     keep_loci = NULL,
     pseudocount = 1,
     n_pcs = NULL,
@@ -221,7 +221,9 @@ fitCellDistancePipeline <- function(
             fmm_args <- modifyList(list(verbose = verbose), fmm_control)
             fmm_args$cell_allele_cnt_list <- cell_allele_counts[keep_loci]
             fmm_args$init <- pca_fmm@L
-            fmm_args$combined_multinomial <- FALSE
+            if (identical(fmm_args$combined_multinomial, "init")) {
+                fmm_args$combined_multinomial <- FALSE
+            }
             pca_fmm <- do.call(fitFiniteMixtureModel, fmm_args)
         }
         mi <- NULL
@@ -237,7 +239,7 @@ fitCellDistancePipeline <- function(
     pca <- .clr_weighted_pca(pca_fmm@Fmat, pca_fmm@pi, pca_fmm@locus_1hot)
 
     if (is.null(n_pcs) || is.character(n_pcs)) {
-        method <- if (is.character(n_pcs)) n_pcs else "gavish_donoho"
+        method <- if (is.character(n_pcs)) n_pcs else "marchenko_pastur"
         scree <- estimateFmmDimensionality(pca_fmm, method = method)
         min_pcs <- if (is.null(batch)) 2L else 1L + nlevels(batch)
         n_pcs <- max(min_pcs, scree$cutoff_index)

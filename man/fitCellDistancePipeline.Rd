@@ -7,7 +7,7 @@
 fitCellDistancePipeline(
   cell_allele_counts,
   n_clusters = 20,
-  n_loci = "fdr",
+  n_loci = 30,
   keep_loci = NULL,
   pseudocount = 1,
   n_pcs = NULL,
@@ -44,7 +44,7 @@ concentration is estimated from the data via
 
 \item{n_pcs}{Number of principal components, or a character string naming a
 method from \code{\link{estimateFmmDimensionality}} (default
-\code{NULL} uses \code{"gavish_donoho"}). When automatic, a minimum
+\code{NULL} uses \code{"marchenko_pastur"}). When automatic, a minimum
 of 2 dimensions is enforced (or \code{2 + nlevels(batch) - 1} when
 batch correction is active) to prevent LDA from collapsing
 dimensionality.}

@@ -75,6 +75,17 @@ the `CellAlleleCounts` can be created by calling
 `CellAlleleCounts_from_dataframe()` on the long table of counts
 produced by that pipeline.
 
+# Filter loci
+
+We remove A>G and T>C mutations due to RNA editing. Since the data
+didn't have annotated REF or ALT alleles, we use the major allele as
+the reference.
+
+```{r}
+cac <- collapse_rna_editing(cac, reference="major")
+cac
+```
+
 # Data slicing
 
 Loci can be sliced along rows and cells can be sliced along columns:
@@ -101,7 +112,9 @@ The sclanternR procedure involves several steps, consisting of an initial cluste
 
 ```{r}
 fit <- fitCellDistancePipeline(
-    cac, verbose=1
+    cac,
+    n_loci = 30, # default
+    verbose = 1
 )
 ```
 
@@ -154,19 +167,19 @@ ggtree(tr, layout='ape') %<+%
 
 The first cutoff to consider is the number of informative loci to retain. We use a scaled version of the mutual information (G-statistic) to rank the loci.
 
-For the automatic cutoff, we test for the loci being independent of the clusters, and select loci at 5% FDR, with bounds of at least 10 loci or at most 300 loci selected.
-
-Below, we plot the scaled mutual information scores and the cutoff selected. The maximum cutoff of 300 was chosen; however this was likely too high, as we can visually see a sharp drop at between 10-30 loci. Also, as a rule of thumb, we've found that selecting between 30-100 loci tends to give the best results.
+The default uses 30 loci. But we can plot the mutualinfo scores to see if there is a better cutoff.
 
 ```{r, fig.width=5, fig.height=5}
-plot(fit$mi_cutoff)
+plot(sort(fit$mutualinfo, decreasing=TRUE)[1:100])
+# plot without first 2 loci which dominate
+plot(sort(fit$mutualinfo, decreasing=TRUE)[3:100])
 ```
 
 ## Number of principal components
 
 The second cutoff to consider is the number of PCs to keep.
 
-By default, we use the Gavish-Donoho procedure to select the number of PCs. But it's recommended to check the scree plot to see if there is a more obvious inflection point visually. In this case, there wasn't a more obvious cutoff, and we stick with the default selected 5 PCs.
+By default, we use the Marchenko-Pasteur procedure to select the number of PCs. But it's recommended to check the scree plot to see if there is a more obvious inflection point visually.
 
 ```{r, fig.width=5, fig.height=5}
 plot(fit$scree)
@@ -174,12 +187,12 @@ plot(fit$scree)
 
 ## Rerunning the pipeline
 
-The pipeline can be rerun with the manually selected cutoffs. We can pass the previous fit in order to skip intermediate steps that are the same between the 2 runs (namely, the initial clustering procedure).
+The pipeline can be rerun with the manually selected cutoffs. We can pass the previous fit in order to skip intermediate steps that are the same between the 2 runs (namely, the initial clustering procedure). We demonstrate here, rerunning with fewer loci and PCs.
 
 ```{r}
 fit2 <- fitCellDistancePipeline(
     cac,
-    n_loci = 30,
+    n_loci = 20,
     n_pcs = 5,
     init = fit,
     verbose=1
@@ -231,7 +244,7 @@ at the selected loci. The fit object contains these frequencies in the
 
 ```{r, fig.width=9, fig.height=8}
 heatmapLocusMatrixList(
-    fit2$freq_list,
+    fit$freq_list,
     cell_meta[, 'clone', drop=FALSE],
     cell_meta_colors=list(
         clone=clone_colors
@@ -247,7 +260,7 @@ Below, we sort the cells by ground truth clone.
 o <- order(cell_meta$clone)
 
 heatmapLocusMatrixList(
-    lapply(fit2$freq_list, function(x) x[,o]),
+    lapply(fit$freq_list, function(x) x[,o]),
     cell_meta[, 'clone', drop=FALSE],
     cell_meta_colors=list(
         clone=clone_colors
@@ -260,7 +273,7 @@ heatmapLocusMatrixList(
 matrices. Below, we demonstrate plotting the log10-scaled counts:
 
 ```{r, fig.width=9, fig.height=8}
-log_cnt_list <- lapply(cac[names(fit2$freq_list)],
+log_cnt_list <- lapply(cac[names(fit$freq_list)],
                        function(x) log10(as.matrix(x) + 1))
 
 heatmapLocusMatrixList(

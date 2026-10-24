@@ -64,7 +64,7 @@ test_that("scree has all eigenvalues", {
 
     expect_equal(length(result$scree$eigenvalues), 4L)
     expect_true(all(result$scree$eigenvalues >= 0))
-    expect_equal(result$scree$method, "gavish_donoho")
+    expect_equal(result$scree$method, "marchenko_pastur")
 })
 
 test_that("n_loci capped to available loci", {

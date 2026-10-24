@@ -15,7 +15,7 @@
 #' @param init A previously fitted \code{\linkS4class{FiniteMixtureModel}},
 #'     which skips initial fitting, or \code{NULL} to fit an initial FMM.
 #' @param reestimate_fmm Non-negative integer giving the number of FMM refits
-#'     on selected loci (default 0). Logical \code{FALSE} and \code{TRUE}
+#'     on selected loci (default 3). Logical \code{FALSE} and \code{TRUE}
 #'     are accepted as 0 and 1. With 0, only initial fitting and selection
 #'     are performed. With 1, the model is refit on the selected loci. With 2 or
 #'     more, all loci are rescored and reselected before each additional refit.
@@ -38,12 +38,12 @@
 fitCellClustering <- function(
     cell_allele_counts,
     n_clusters = 20,
-    n_loci = "fdr",
+    n_loci = 30,
     batch = NULL,
     init = NULL,
     fmm_control = list(),
     n_loci_control = list(),
-    reestimate_fmm = 0,
+    reestimate_fmm = 3,
     verbose = FALSE
 ) {
     if (!is(cell_allele_counts, "CellAlleleCounts"))
@@ -84,7 +84,9 @@ fitCellClustering <- function(
         # These define the refinement step and must not be overridden by controls.
         fmm_args$cell_allele_cnt_list <- cell_allele_counts[selection$keep_loci]
         fmm_args$init <- fmm@L
-        fmm_args$combined_multinomial <- FALSE
+        if (identical(fmm_args$combined_multinomial, "init")) {
+            fmm_args$combined_multinomial <- FALSE
+        }
         fmm <- do.call(fitFiniteMixtureModel, fmm_args)
     }
     .log_msg(1, verbose, "Selected %d informative loci", length(selection$keep_loci))

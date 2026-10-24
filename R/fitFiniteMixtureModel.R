@@ -35,8 +35,8 @@
 #' @param cell_pseudocount Pseudocount for global clone proportions (default 1).
 #'     Corresponds to a Dirichlet prior on global proportions with shape
 #'     `1+cell_pseudocount`
-#' @param combined_multinomial One of \code{"init"} (default), \code{TRUE},
-#'     or \code{FALSE}. When \code{"init"}, a combined-multinomial FMM is
+#' @param combined_multinomial One of \code{"init"}, \code{TRUE},
+#'     or \code{FALSE} (default). When \code{"init"}, a combined-multinomial FMM is
 #'     first fitted (using \code{init} for its initialization), then used
 #'     to initialize the per-locus FMM. When \code{TRUE}, the model treats
 #'     all features as one locus (allele frequencies sum to 1 across all
@@ -52,8 +52,8 @@
 #' @param verbose Verbosity level: 0/FALSE for silent, 1/TRUE for milestones,
 #'     2 for per-iteration log-likelihood, 3 for sub-step timing.
 #' @param hclust_covariance Covariance used for \code{init="hclust"}:
-#'     \code{"total"} (default) uses Euclidean distances between each cell's
-#'     globally normalized feature frequencies. \code{"within_locus"}
+#'     \code{"total"} uses Euclidean distances between each cell's
+#'     globally normalized feature frequencies. \code{"within_locus"} (default)
 #'     subtracts the between-locus covariance from the total, giving distances
 #'     equivalent to centering features within each locus for each cell.
 #'     See [computeCellInnerProduct()] for the inner-product calculation.
@@ -75,12 +75,12 @@ fitFiniteMixtureModel <- function(
     init = "hclust",
     loc_pseudocount  = 1,
     cell_pseudocount = 1,
-    combined_multinomial = "init",
+    combined_multinomial = FALSE,
     n_init_cells = NULL,
     maxiter = 100,
     tol     = 1e-12,
     verbose = FALSE,
-    hclust_covariance = c("total", "within_locus"),
+    hclust_covariance = c("within_locus", "total"),
     hclust_rank = NULL
 ) {
     hclust_covariance <- match.arg(hclust_covariance)
@@ -248,7 +248,9 @@ fitFiniteMixtureModel <- function(
         loglik_trace[iter] <- ll
         .log_msg(2, verbose, "Iter %d: log-lik = %.4f", iter, ll)
 
-        if (iter > 1) {
+        # prevent issues if initial ll=-Inf by only checking tolerance
+        # after first iteration
+        if (iter > 2) {
             rel_change <- abs(ll - loglik_trace[iter - 1]) /
                           (abs(loglik_trace[iter - 1]) + 1e-12)
             if (rel_change < tol) {

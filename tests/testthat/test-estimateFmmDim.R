@@ -9,7 +9,7 @@ test_that("estimateFmmDimensionality: marchenko_pastur (default) returns valid r
     result <- estimateFmmDimensionality(fmm)
 
     expect_s3_class(result, "FmmDimEstimate")
-    expect_equal(result$method, "gavish_donoho")
+    expect_equal(result$method, "marchenko_pastur")
     expect_true(all(result$eigenvalues >= 0))
     expect_true(is.numeric(result$threshold))
     expect_true(result$threshold > 0)

@@ -3,7 +3,7 @@ test_that("clustering alone preserves zero and one refit behavior", {
     fmm <- fitFiniteMixtureModel(cnt, n_clusters = 3, maxiter = 10)
     mi <- mutualinfo(fmm, cnt)
     selected <- names(sort(mi, decreasing = TRUE))[1:2]
-    zero <- fitCellClustering(cnt, init = fmm, n_loci = 2)
+    zero <- fitCellClustering(cnt, init = fmm, n_loci = 2, reestimate_fmm = 0)
     expect_s3_class(zero, "CellClustering")
     expect_identical(zero$fmm, fmm)
     expect_equal(zero$keep_loci, selected)
@@ -45,6 +45,27 @@ test_that("multiple refits match manual all-locus rescoring and fitting", {
     }
 })
 
+test_that("refits preserve explicit multinomial modes except initialization-only mode", {
+    cnt <- .make_cell_cnt_large()
+    initial <- fitFiniteMixtureModel(cnt, n_clusters = 3, maxiter = 10)
+    selected <- names(sort(mutualinfo(initial, cnt), decreasing = TRUE))[1:2]
+    for (mode in list(FALSE, TRUE, "init")) {
+        control <- list(combined_multinomial = mode, maxiter = 10)
+        expected <- fitFiniteMixtureModel(
+            cnt[selected], init = initial@L, maxiter = 10,
+            combined_multinomial = identical(mode, TRUE))
+        clustering <- fitCellClustering(
+            cnt, init = initial, n_loci = 2, reestimate_fmm = 1,
+            fmm_control = control)
+        expect_identical(clustering$fmm, expected)
+        pipeline <- fitCellDistancePipeline(
+            cnt, init = initial, keep_loci = selected, reestimate_fmm = 1,
+            n_pcs = 2, fmm_control = control)
+        expect_equal(pipeline$projected_fmm@L, expected@L)
+        expect_equal(pipeline$projected_fmm@pi, expected@pi)
+    }
+})
+
 test_that("an excluded locus can re-enter after responsibilities change", {
     cells <- paste0("cell", 1:4)
     loci <- c("chr1_100", "chr2_200")
@@ -82,7 +103,7 @@ test_that("an excluded locus can re-enter after responsibilities change", {
 test_that("cutoff controls apply across rounds", {
     cnt <- .make_cell_cnt_large()
     initial <- fitFiniteMixtureModel(cnt, n_clusters = 3, maxiter = 10)
-    automatic <- fitCellClustering(cnt, init = initial, reestimate_fmm = 2,
+    automatic <- fitCellClustering(cnt, init = initial, n_loci = "fdr", reestimate_fmm = 2,
                                    n_loci_control = list(min_loci = 2, max_loci = 2),
                                    fmm_control = list(maxiter = 10))
     expect_length(automatic$keep_loci, 2)
@@ -109,7 +130,7 @@ test_that("batch selection rescans all loci and caps numeric selections", {
     capped <- fitCellClustering(cnt, init = initial, batch = batch, n_loci = 100)
     expect_setequal(capped$keep_loci, names(cnt))
     expect_false(anyNA(capped$keep_loci))
-    automatic <- fitCellClustering(cnt, init = initial, batch = batch,
+    automatic <- fitCellClustering(cnt, init = initial, batch = batch, n_loci = "fdr",
                                    reestimate_fmm = 2,
                                    n_loci_control = list(min_loci = 1, max_loci = 1),
                                    fmm_control = list(maxiter = 10))
