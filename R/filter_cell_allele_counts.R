@@ -23,13 +23,21 @@ filter_cell_allele_counts <- function(cac,
     }
     keep_cells <- colSums(cac) >= min_counts_per_cell
     cac <- cac[, keep_cells]
+    if (nrow(cac@counts) == 0L) return(cac)
 
     cnt_mat <- as(cac, 'CsparseMatrix')
     keep_features <- Matrix::rowSums(cnt_mat > 0) >= min_cells_per_feature
     if (keep_ref && "allele_type" %in% colnames(cac@locus_map)) {
         keep_features <- keep_features | cac@locus_map$allele_type %in% "REF"
     }
-    cac <- .new_cac(as(cnt_mat[keep_features, , drop = FALSE], "RsparseMatrix"),
+    kept_counts <- if (ncol(cac) == 0L) {
+        Matrix::sparseMatrix(i = integer(), j = integer(),
+            dims = c(sum(keep_features), 0L),
+            dimnames = list(rownames(cnt_mat)[keep_features], NULL))
+    } else {
+        cnt_mat[keep_features, , drop = FALSE]
+    }
+    cac <- .new_cac(as(kept_counts, "RsparseMatrix"),
                     cac@locus_map[keep_features, , drop = FALSE],
                     cac@cell_data)
     

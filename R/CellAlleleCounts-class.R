@@ -109,23 +109,28 @@ CellAlleleCounts <- function(counts, locus_map = NULL, cell_data = NULL) {
 
     if (is.null(locus_map)) {
         feature_names <- rownames(counts)
-        if (is.null(feature_names)) {
-            stop("counts must have rownames when locus_map is not provided")
+        if (nrow(counts) == 0L) {
+            locus_map <- DataFrame(locus = character(), allele = character(),
+                                   feature_name = character())
+        } else {
+            if (is.null(feature_names)) {
+                stop("counts must have rownames when locus_map is not provided")
+            }
+            parsed <- .getFeatureAnno(feature_names)
+            locus_map <- DataFrame(
+                locus = parsed$chr_pos,
+                allele = parsed$allele,
+                feature_name = feature_names
+            )
         }
-        parsed <- .getFeatureAnno(feature_names)
-        locus_map <- DataFrame(
-            locus = parsed$chr_pos,
-            allele = parsed$allele,
-            feature_name = feature_names
-        )
     }
 
     if (is.null(cell_data)) {
         cell_names <- colnames(counts)
-        if (is.null(cell_names)) {
+        if (is.null(cell_names) && ncol(counts) > 0L) {
             stop("counts must have colnames when cell_data is not provided")
         }
-        cell_data <- DataFrame(row.names = cell_names)
+        cell_data <- DataFrame(row.names = if (ncol(counts) == 0L) character() else cell_names)
     }
 
     .new_cac(counts, locus_map, cell_data)
@@ -178,7 +183,6 @@ CellAlleleCounts_from_list <- function(mat_list, cell_data = NULL) {
 #'     "allele", "locus", "count", corresponding respectively to the
 #'     cell barcode, UMI barcode, allele, locus, reads. An optional
 #'     `allele_type` column (`REF`/`ALT`) is retained in `locus_map`.
-#'     Non-missing labels must agree for each locus-allele pair.
 #' @param min_cells_per_feature Minimum number of cells with nonzero counts
 #'     required to retain a feature (except REF when `keep_ref = TRUE`).
 #'     If positive, loci with only one retained allele are also removed.
@@ -197,6 +201,7 @@ CellAlleleCounts_from_dataframe <- function(df_counts,
                                             min_cells_per_feature = 2,
                                             keep_ref = TRUE) {
     df_counts <- as.data.table(df_counts)
+    cells <- sort(unique(df_counts$cell))
 
     lazy_dt(df_counts) |>
         group_by(cell, umi, locus) |>
@@ -206,7 +211,7 @@ CellAlleleCounts_from_dataframe <- function(df_counts,
         group_by(cell, locus, allele) |>
         summarize(umis=n(), .groups='drop') |>
         mutate(feature=paste0(locus, "_", allele)) |>
-        mutate(cell=factor(cell, levels=sort(unique(cell))),
+        mutate(cell=factor(cell, levels=cells),
                feature=factor(feature, levels=sort(unique(feature)))) |>
         as.data.frame() ->
         df_counts_summed
@@ -218,6 +223,7 @@ CellAlleleCounts_from_dataframe <- function(df_counts,
             i = as.integer(feature),
             j = as.integer(cell),
             x = umis,
+            dims = c(nlevels(feature), length(cells)),
             dimnames = list(levels(feature), levels(cell)),
             index1 = TRUE
         )

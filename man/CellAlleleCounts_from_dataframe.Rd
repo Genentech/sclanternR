@@ -15,8 +15,7 @@ CellAlleleCounts_from_dataframe(
 sclantern-nf. The table should have columns "cell", "umi",
 "allele", "locus", "count", corresponding respectively to the
 cell barcode, UMI barcode, allele, locus, reads. An optional
-\code{allele_type} column (\code{REF}/\code{ALT}) is retained in \code{locus_map}.
-Non-missing labels must agree for each locus-allele pair.}
+\code{allele_type} column (\code{REF}/\code{ALT}) is retained in \code{locus_map}.}
 
 \item{min_cells_per_feature}{Minimum number of cells with nonzero counts
 required to retain a feature (except REF when \code{keep_ref = TRUE}).

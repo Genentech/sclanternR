@@ -107,7 +107,13 @@ setMethod("[", signature(x = "CellAlleleCounts", i = "missing", j = "ANY"),
 .subset_loci <- function(x, loci) {
     idx <- unlist(x@locus_index[loci], use.names = FALSE)
 
-    sub_counts <- x@counts[idx, , drop = FALSE]
+    # MatrixExtra cannot subset an already empty matrix reliably.
+    sub_counts <- if (length(idx) == 0L) {
+        Matrix::sparseMatrix(i = integer(), j = integer(),
+            dims = c(0L, ncol(x)), dimnames = list(NULL, colnames(x)))
+    } else {
+        x@counts[idx, , drop = FALSE]
+    }
     if (!is(sub_counts, "RsparseMatrix")) {
         sub_counts <- as(sub_counts, "RsparseMatrix")
     }
@@ -126,7 +132,12 @@ setMethod("[", signature(x = "CellAlleleCounts", i = "missing", j = "ANY"),
         cidx <- j
     }
 
-    sub_counts <- x@counts[, cidx, drop = FALSE]
+    sub_counts <- if (length(cidx) == 0L) {
+        Matrix::sparseMatrix(i = integer(), j = integer(),
+            dims = c(nrow(x@counts), 0L), dimnames = list(rownames(x@counts), NULL))
+    } else {
+        x@counts[, cidx, drop = FALSE]
+    }
     if (!is(sub_counts, "RsparseMatrix")) {
         sub_counts <- as(sub_counts, "RsparseMatrix")
     }
