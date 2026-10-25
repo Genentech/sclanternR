@@ -7,7 +7,7 @@
 collapse_rna_editing(
   cac,
   all_transitions = FALSE,
-  reference = c("REF", "major")
+  reference = c("auto", "REF", "major")
 )
 }
 \arguments{
@@ -16,8 +16,10 @@ collapse_rna_editing(
 \item{all_transitions}{Logical; also collapse G>A and C>T substitutions,
 so that all transitions (A/G and C/T) are collapsed. Default FALSE.}
 
-\item{reference}{Which allele to use as the reference: \code{"REF"} (default)
-uses the annotated REF allele; \code{"major"} uses the allele with the
+\item{reference}{Which allele to use as the reference: \code{"auto"} (default)
+uses the annotated REF allele when available at each locus, otherwise
+falls back to \code{"major"}; \code{"REF"} requires the annotated REF allele;
+\code{"major"} uses the allele with the
 greatest total count across cells, regardless of REF/ALT annotation.}
 }
 \value{
@@ -30,6 +32,10 @@ only by A>G or T>C substitutions. Loci with only one resulting allele are
 removed.
 }
 \details{
+With \code{reference = "auto"}, each locus uses the \code{"REF"} rules if it has a
+REF allele and the \code{"major"} rules otherwise, including when \code{allele_type}
+is absent. Multiple REF alleles at a locus are an error.
+
 With \code{reference = "REF"}, \code{locus_map} must contain \code{allele_type} and every
 locus must have exactly one allele labelled \code{REF}. Only alleles labelled
 \code{ALT} can be merged into it. Missing annotations or a missing REF at any

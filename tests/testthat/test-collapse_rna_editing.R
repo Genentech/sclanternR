@@ -74,9 +74,11 @@ test_that("default and all-transition modes distinguish every substitution", {
 test_that("explicit major reference uses total counts with deterministic ties", {
     cac <- .editing_counts(list(c("G", "A", "C"), c("G", "A"), c("T", "C")),
         matrix(c(2, 1, 1, 4, 2, 3, 1, 0, 5, 1, 4, 1, 0, 2), nrow = 7))
-    expect_error(collapse_rna_editing(cac),
+    expect_error(collapse_rna_editing(cac, reference = "REF"),
                  'REF annotation is missing.*use reference = "major"')
     out <- collapse_rna_editing(cac, reference = "major")
+    expect_equal(collapse_rna_editing(cac), out)
+    expect_equal(collapse_rna_editing(cac, reference = "auto"), out)
     # A wins by total counts at locus 1; G wins at locus 2; T wins the tie at 3.
     expect_equal(names(out), c("chr1_1", "chr1_2"))
     expect_equal(as.matrix(out[["chr1_1"]]),
@@ -110,15 +112,15 @@ test_that("sequence alleles collapse only when all differences are allowed", {
     expect_equal(names(collapse_rna_editing(cac, TRUE)), names(cac)[c(3:5, 8)])
 })
 
-test_that("every locus must have REF unless major mode is explicit", {
+test_that("explicit REF mode requires REF at every locus", {
     cac <- .editing_counts(list(c("A", "G"), c("A", "G"), c("A", "G")),
         allele_type = c("ALT", "ALT", NA, NA, "REF", NA))
-    expect_error(collapse_rna_editing(cac),
+    expect_error(collapse_rna_editing(cac, reference = "REF"),
                  'REF allele is missing at locus \'chr1_1\'; use reference = "major"')
-    expect_error(collapse_rna_editing(cac["chr1_2"]),
+    expect_error(collapse_rna_editing(cac["chr1_2"], reference = "REF"),
                  'REF allele is missing.*use reference = "major"')
     cac@locus_map$allele_type[1] <- "REF"
-    expect_error(collapse_rna_editing(cac),
+    expect_error(collapse_rna_editing(cac, reference = "REF"),
                  'REF allele is missing at locus \'chr1_2\'; use reference = "major"')
     expect_length(collapse_rna_editing(cac, reference = "major"), 0)
     # An unlabelled candidate is not merged when a REF is available.
@@ -173,7 +175,7 @@ test_that("filtering protects rare and zero-count REF alleles by default", {
     legacy <- filter_cell_allele_counts(cac, keep_ref = FALSE)
     expect_equal(names(legacy), "chr1_1")
     expect_equal(legacy@locus_map, cac@locus_map[2:3, ])
-    expect_error(collapse_rna_editing(legacy),
+    expect_error(collapse_rna_editing(legacy, reference = "REF"),
                  'REF allele is missing.*use reference = "major"')
     expect_equal(collapse_rna_editing(legacy, reference = "major"), legacy)
     cac@locus_map$allele_type <- NULL
@@ -204,6 +206,24 @@ test_that("dataframe import exposes REF retention and legacy filtering", {
     expect_equal(nrow(collapse_rna_editing(cac)@counts), 2L)
     legacy <- CellAlleleCounts_from_dataframe(df, keep_ref = FALSE)
     expect_equal(legacy, filter_cell_allele_counts(cac, keep_ref = FALSE))
-    expect_error(collapse_rna_editing(legacy),
+    expect_error(collapse_rna_editing(legacy, reference = "REF"),
                  'REF allele is missing.*use reference = "major"')
+})
+
+
+test_that("auto chooses REF or major independently at each locus", {
+    cac <- .editing_counts(rep(list(c("A", "G", "C")), 3),
+        matrix(rep(c(1, 5, 2), 6), nrow = 9),
+        c("REF", "ALT", "ALT", "ALT", "ALT", "ALT", NA, NA, NA))
+    out <- collapse_rna_editing(cac)
+    expect_equal(out, collapse_rna_editing(cac, reference = "auto"))
+    expect_equal(out["chr1_1"],
+                 collapse_rna_editing(cac["chr1_1"], reference = "REF"))
+    for (locus in c("chr1_2", "chr1_3")) {
+        expect_equal(out[locus],
+                     collapse_rna_editing(cac[locus], reference = "major"))
+    }
+    expect_equal(nrow(out@counts), 8L)
+    cac@locus_map$allele_type[2] <- "REF"
+    expect_error(collapse_rna_editing(cac), "Multiple REF alleles")
 })

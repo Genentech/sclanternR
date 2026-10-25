@@ -7,11 +7,17 @@
 #' @param cac A `CellAlleleCounts` object.
 #' @param all_transitions Logical; also collapse G>A and C>T substitutions,
 #'     so that all transitions (A/G and C/T) are collapsed. Default FALSE.
-#' @param reference Which allele to use as the reference: `"REF"` (default)
-#'     uses the annotated REF allele; `"major"` uses the allele with the
+#' @param reference Which allele to use as the reference: `"auto"` (default)
+#'     uses the annotated REF allele when available at each locus, otherwise
+#'     falls back to `"major"`; `"REF"` requires the annotated REF allele;
+#'     `"major"` uses the allele with the
 #'     greatest total count across cells, regardless of REF/ALT annotation.
 #'
 #' @details
+#' With `reference = "auto"`, each locus uses the `"REF"` rules if it has a
+#' REF allele and the `"major"` rules otherwise, including when `allele_type`
+#' is absent. Multiple REF alleles at a locus are an error.
+#'
 #' With `reference = "REF"`, `locus_map` must contain `allele_type` and every
 #' locus must have exactly one allele labelled `REF`. Only alleles labelled
 #' `ALT` can be merged into it. Missing annotations or a missing REF at any
@@ -38,7 +44,7 @@
 #'
 #' @export
 collapse_rna_editing <- function(cac, all_transitions = FALSE,
-                                 reference = c("REF", "major")) {
+                                 reference = c("auto", "REF", "major")) {
     if (!is(cac, "CellAlleleCounts")) {
         stop("cac must be a CellAlleleCounts object")
     }
@@ -50,13 +56,16 @@ collapse_rna_editing <- function(cac, all_transitions = FALSE,
 
     locus_map <- cac@locus_map
     alleles <- toupper(as.character(locus_map$allele))
-    if (reference == "REF") {
+    allele_type <- rep(NA_character_, nrow(locus_map))
+    if (reference != "major") {
         if (!"allele_type" %in% colnames(locus_map)) {
-            stop('REF annotation is missing (no allele_type column); ',
+            if (reference == "REF") stop('REF annotation is missing (no allele_type column); ',
                  'use reference = "major".')
+        } else {
+            allele_type <- as.character(locus_map$allele_type)
         }
-        allele_type <- as.character(locus_map$allele_type)
-    } else {
+    }
+    if (reference != "REF") {
         totals <- Matrix::rowSums(cac@counts)
     }
     allowed <- c("AG", "TC")
@@ -64,8 +73,8 @@ collapse_rna_editing <- function(cac, all_transitions = FALSE,
     target <- seq_len(nrow(locus_map))
 
     for (idx in cac@locus_index) {
-        if (reference == "REF") {
-            ref <- idx[which(allele_type[idx] == "REF")]
+        ref <- idx[which(allele_type[idx] == "REF")]
+        if (reference == "REF" || (reference == "auto" && length(ref) > 0L)) {
             if (length(ref) > 1L) {
                 stop(sprintf("Multiple REF alleles at locus '%s'",
                              locus_map$locus[idx[1L]]))
