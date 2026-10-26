@@ -27,6 +27,9 @@ requires newx.}
 \item{cell_pseudocount}{Pseudocount for topic proportions (default 0.01).}
 
 \item{loc_pseudocount}{Pseudocount per locus (default 1).}
+
+\item{nobs}{Total observation count (sum of the count matrix), used for
+BIC computation. Defaults to \code{NA} when unknown.}
 }
 \value{
 A \code{LocusNMF} object.

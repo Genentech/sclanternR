@@ -22,6 +22,8 @@ setClass("LocusNMF", contains = "LocusModel")
 #' @param loglik Optional numeric vector of log-likelihood trace.
 #' @param cell_pseudocount Pseudocount for topic proportions (default 0.01).
 #' @param loc_pseudocount Pseudocount per locus (default 1).
+#' @param nobs Total observation count (sum of the count matrix), used for
+#'   BIC computation. Defaults to `NA` when unknown.
 #'
 #' @returns A `LocusNMF` object.
 #' @export

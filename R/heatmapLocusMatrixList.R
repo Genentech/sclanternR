@@ -1,6 +1,30 @@
-
-
+#' Plot allele matrices as a heatmap
+#'
+#' Display cells as rows and alleles as columns, grouped by locus and ordered
+#' by chromosome and position, with cell metadata as row annotations.
+#'
+#' @param list_mat Named list of allele-by-cell matrices, one per locus.
+#'   Row names must use the `chr{chr}_{position}_{allele}` feature format;
+#'   all matrices must have the same cells in the same column order.
+#' @param cell_meta Data frame of cell annotations with cell identifiers as
+#'   row names.
+#' @param cell_meta_colors Optional named list of annotation color mappings,
+#'   passed to [ComplexHeatmap::rowAnnotation()].
+#' @param cluster_rows Whether to cluster cells, or a clustering object
+#'   accepted by [ComplexHeatmap::Heatmap()].
+#' @param gene_names Optional gene labels, named by locus. An unnamed vector
+#'   is matched to the order of `list_mat`.
+#' @param colors Colors defining the heatmap gradient.
+#' @param color_limits Numeric vector of length two giving the gradient limits.
+#'   Defaults to the range of the matrices, excluding missing values.
+#' @param color_title Legend title. Defaults to `"p"` for values between zero
+#'   and one, and `"x"` otherwise.
+#' @param max_allele_length Optional maximum allele label length. Long labels
+#'   are truncated while allowing for differences in allele length at a locus.
+#' @param column_names_max_cm Maximum height of column labels in centimeters.
+#' @returns A [ComplexHeatmap::Heatmap-class] object.
 #' @export
+#' @importFrom grid unit
 #' @importFrom forcats fct_drop
 #' @importFrom dplyr arrange mutate group_by summarize if_else
 #' @importFrom ComplexHeatmap Heatmap rowAnnotation

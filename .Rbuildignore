@@ -1,1 +1,5 @@
 ^LICENSE\.md$
+^Readme\.md$
+^\.claude$
+^sclanternR.*\.tar\.gz$
+^vignettes/.*\.html$

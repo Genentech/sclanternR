@@ -91,5 +91,7 @@ optionally allele_type (REF/ALT annotation).}
 
 \item{\code{locus_index}}{Named list mapping each locus name to its row indices in
 \code{counts}. Precomputed at construction for O(1) locus lookup.}
+
+\item{\code{locus_1hot}}{CsparseMatrix indicator (loci x features).}
 }}
 

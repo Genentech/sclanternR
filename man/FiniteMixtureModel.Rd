@@ -28,6 +28,9 @@ If NULL, the model is constructed without cell data.}
 \item{cell_pseudocount}{Pseudocount for clone proportions (default 1).}
 
 \item{loc_pseudocount}{Pseudocount per locus (default 1).}
+
+\item{nobs}{Total observation count (sum of the count matrix), used for
+BIC computation. Defaults to \code{NA} when unknown.}
 }
 \value{
 A \code{FiniteMixtureModel} object.

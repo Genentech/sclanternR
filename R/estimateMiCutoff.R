@@ -195,7 +195,7 @@ print.MiCutoffEstimate <- function(x, ...) {
 
 #' @importFrom ggplot2 ggplot aes geom_point geom_vline scale_y_continuous scale_x_log10 theme_bw theme
 #' @export
-plot.MiCutoffEstimate <- function(x) {
+plot.MiCutoffEstimate <- function(x, ...) {
     df <- data.frame(
         mutualinfo = x$mutualinfo,
         rank = rank(-x$mutualinfo))

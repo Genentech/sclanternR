@@ -28,6 +28,7 @@
 #' @param prefix Not used.
 #' @param ... Not used.
 #' @param drop Not used.
+#' @param k Penalty per model parameter for AIC (default 2).
 #'
 #' @include getFeatureAnno.R
 #' @name LocusModel-class

@@ -9,7 +9,9 @@
 \alias{colnames,LocusModel-method}
 \alias{show,LocusModel-method}
 \alias{coef}
+\alias{coef,LocusModel-method}
 \alias{loadings}
+\alias{loadings,LocusModel-method}
 \alias{[,LocusModel,ANY,ANY,ANY-method}
 \alias{[,LocusModel,ANY,missing,ANY-method}
 \alias{[,LocusModel,missing,ANY,ANY-method}
@@ -39,7 +41,11 @@
 
 coef(object, ...)
 
+\S4method{coef}{LocusModel}(object, ...)
+
 loadings(x, ...)
+
+\S4method{loadings}{LocusModel}(x)
 
 \S4method{[}{LocusModel,ANY,ANY,ANY}(x, i, j, ..., drop = TRUE)
 
@@ -87,6 +93,8 @@ loadings(x, ...)
 \item{j}{Index for cells: numeric, character, or logical.}
 
 \item{drop}{Not used.}
+
+\item{k}{Penalty per model parameter for AIC (default 2).}
 }
 \description{
 Virtual parent class for locus-aware models (LocusNMF and

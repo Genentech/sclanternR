@@ -46,6 +46,8 @@ setMethod("show", "LocusModel", function(object) {
 #' @rdname LocusModel-class
 #' @exportMethod coef
 setGeneric("coef")
+#' @rdname LocusModel-class
+#' @exportMethod coef
 setMethod("coef", "LocusModel", function(object, ...) {
     lapply(object@locus_index,
            function(idx) object@Fmat[idx, , drop = FALSE])
@@ -54,6 +56,8 @@ setMethod("coef", "LocusModel", function(object, ...) {
 #' @rdname LocusModel-class
 #' @exportMethod loadings
 setGeneric("loadings")
+#' @rdname LocusModel-class
+#' @exportMethod loadings
 setMethod("loadings", "LocusModel", function(x) {
     x@L
 })

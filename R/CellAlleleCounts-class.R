@@ -13,6 +13,7 @@
 #' @slot cell_data DataFrame with cell metadata. Rownames are cell identifiers.
 #' @slot locus_index Named list mapping each locus name to its row indices in
 #'     `counts`. Precomputed at construction for O(1) locus lookup.
+#' @slot locus_1hot CsparseMatrix indicator (loci x features).
 #' @param x A CellAlleleCounts object.
 #' @param i Index for loci: numeric, character (locus name), or logical.
 #' @param j Index for cells: numeric, character (cell name), or logical.
