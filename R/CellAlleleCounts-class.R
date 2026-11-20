@@ -201,6 +201,10 @@ CellAlleleCounts_from_list <- function(mat_list, cell_data = NULL) {
 CellAlleleCounts_from_dataframe <- function(df_counts,
                                             min_cells_per_feature = 2,
                                             keep_ref = TRUE) {
+    if (!is.null(df_counts$sample)) {
+        df_counts$cell <- paste0(df_counts$sample, "_", df_counts$cell)
+    }
+
     df_counts <- as.data.table(df_counts)
     cells <- sort(unique(df_counts$cell))
 
